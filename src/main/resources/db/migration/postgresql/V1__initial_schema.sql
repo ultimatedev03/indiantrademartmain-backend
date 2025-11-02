@@ -1,3 +1,6 @@
+-- PostgreSQL-specific migrations
+-- Initial schema for Indian Trade Mart
+
 -- Create ENUM types
 CREATE TYPE user_role AS ENUM ('BUYER', 'VENDOR', 'ADMIN', 'EMPLOYEE', 'SUPPORT', 'CTO', 'DATA_ENTRY');
 CREATE TYPE user_status AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED', 'BANNED');
