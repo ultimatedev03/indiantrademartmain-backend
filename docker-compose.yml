@@ -1,0 +1,131 @@
+version: '3.8'
+
+# =============================================================================
+# iTech Backend - Development Docker Compose
+# =============================================================================
+
+services:
+  # =============================================================================
+  # MySQL Database
+  # =============================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: itech-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: itech_db
+      MYSQL_USER: itech_user
+      MYSQL_PASSWORD: itech_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - itech-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # =============================================================================
+  # Redis Cache
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: itech-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - itech-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 10s
+      retries: 5
+
+  # =============================================================================
+  # iTech Backend Application
+  # =============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: itech-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8081:8081"  # Management port
+    environment:
+      # Database Configuration
+      - DATABASE_URL=jdbc:mysql://mysql:3306/itech_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
+      - JDBC_DATABASE_USERNAME=itech_user
+      - JDBC_DATABASE_PASSWORD=itech_password
+      
+      # Redis Configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      
+      # Application Configuration
+      - SPRING_PROFILES_ACTIVE=development
+      - DDL_AUTO=update
+      
+      # CORS Configuration
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001
+      
+      # JWT Configuration
+      - JWT_SECRET=YourSuperSecretJWTKeyForDevelopmentThatIsAtLeast64Characters
+      - JWT_EXPIRATION=86400000
+      
+      # Email Configuration (optional)
+      - EMAIL_SIMULATION_ENABLED=true
+      - SMS_SIMULATION_ENABLED=true
+      - PAYMENT_SIMULATION_ENABLED=true
+      
+      # File Upload
+      - FILE_UPLOAD_DIRECTORY=/app/uploads
+      
+      # JVM Options
+      - JAVA_OPTS=-Xmx1g -Xms512m -XX:+UseG1GC -Djava.awt.headless=true
+      
+      # Database Connection Info for health checks
+      - DATABASE_HOST=mysql
+      - DATABASE_PORT=3306
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+    networks:
+      - itech-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  itech-network:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads_data:
+    driver: local
+  logs_data:
+    driver: local

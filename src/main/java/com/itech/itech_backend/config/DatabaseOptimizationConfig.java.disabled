@@ -1,0 +1,81 @@
+package com.itech.itech_backend.config;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+import javax.sql.DataSource;
+import java.util.Properties;
+
+@Configuration
+@EnableTransactionManagement
+public class DatabaseOptimizationConfig {
+
+    @Bean
+    @Profile("production")
+    public DataSource productionDataSource() {
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:postgresql://localhost:5432/itech_db");
+        config.setUsername("${DB_USERNAME}");
+        config.setPassword("${DB_PASSWORD}");
+        
+        // Connection pool settings
+        config.setMaximumPoolSize(50);
+        config.setMinimumIdle(10);
+        config.setIdleTimeout(300000); // 5 minutes
+        config.setConnectionTimeout(20000); // 20 seconds
+        config.setMaxLifetime(1200000); // 20 minutes
+        
+        // Performance optimization
+        config.addDataSourceProperty("cachePrepStmts", "true");
+        config.addDataSourceProperty("prepStmtCacheSize", "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+        config.addDataSourceProperty("useServerPrepStmts", "true");
+        
+        return new HikariDataSource(config);
+    }
+
+    // @Bean - Disabled to avoid conflicts with Spring Boot auto-configuration
+    public LocalContainerEntityManagerFactoryBean entityManagerFactoryDisabled(DataSource dataSource) {
+        LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
+        em.setDataSource(dataSource);
+        em.setPackagesToScan("com.itech.itech_backend");
+        
+        HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
+        em.setJpaVendorAdapter(vendorAdapter);
+        
+        Properties properties = new Properties();
+        // SQL query optimization
+        properties.setProperty("hibernate.jdbc.batch_size", "50");
+        properties.setProperty("hibernate.jdbc.fetch_size", "50");
+        properties.setProperty("hibernate.order_inserts", "true");
+        properties.setProperty("hibernate.order_updates", "true");
+        
+        // Second level cache (disabled - use Redis for distributed caching instead)
+        properties.setProperty("hibernate.cache.use_second_level_cache", "false");
+        properties.setProperty("hibernate.cache.use_query_cache", "false");
+        
+        // Statistics and query optimization
+        properties.setProperty("hibernate.generate_statistics", "true");
+        properties.setProperty("hibernate.session.events.log.LOG_QUERIES_SLOWER_THAN_MS", "1000");
+        
+        // Connection pool optimization (handled automatically by Spring Boot)
+        
+        em.setJpaProperties(properties);
+        return em;
+    }
+
+    // @Bean - Disabled to avoid conflicts with Spring Boot auto-configuration
+    public PlatformTransactionManager transactionManagerDisabled(LocalContainerEntityManagerFactoryBean entityManagerFactory) {
+        JpaTransactionManager transactionManager = new JpaTransactionManager();
+        transactionManager.setEntityManagerFactory(entityManagerFactory.getObject());
+        return transactionManager;
+    }
+}

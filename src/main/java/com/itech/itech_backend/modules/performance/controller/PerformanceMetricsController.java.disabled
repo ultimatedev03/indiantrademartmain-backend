@@ -1,0 +1,32 @@
+package com.itech.itech_backend.modules.performance.controller;
+
+import com.itech.itech_backend.modules.performance.service.PerformanceMonitoringService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/v1/admin/performance")
+@RequiredArgsConstructor
+@Tag(name = "Performance Metrics", description = "APIs for monitoring system performance")
+public class PerformanceMetricsController {
+
+    private final PerformanceMonitoringService performanceMonitoringService;
+
+    @GetMapping("/snapshot")
+    @Operation(summary = "Get performance snapshot",
+            description = "Get current snapshot of system performance metrics",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> getPerformanceSnapshot() {
+        return ResponseEntity.ok(performanceMonitoringService.getPerformanceSnapshot());
+    }
+}

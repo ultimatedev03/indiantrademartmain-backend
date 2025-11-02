@@ -1,0 +1,408 @@
+openapi: 3.0.3
+info:
+  title: ITech B2B Platform API
+  description: |
+    API documentation for ITech B2B Platform, an IndiaMART-like B2B marketplace.
+    
+    This API enables businesses to:
+    - Manage product catalogs and listings
+    - Handle buyer-seller interactions
+    - Process orders and inquiries
+    - Manage user profiles and accounts
+    - Access analytics and reporting
+  version: 1.0.0
+  contact:
+    name: ITech Support
+    email: support@itech.com
+    url: https://itech.com/support
+  license:
+    name: Proprietary
+    url: https://itech.com/license
+
+servers:
+  - url: https://api.itech.com/v1
+    description: Production environment
+  - url: https://staging-api.itech.com/v1
+    description: Staging environment
+  - url: http://localhost:8080/v1
+    description: Local development
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: Products
+    description: Product management endpoints
+  - name: Orders
+    description: Order management endpoints
+  - name: Vendors
+    description: Vendor management endpoints
+  - name: Analytics
+    description: Analytics and reporting endpoints
+  - name: Chat
+    description: Real-time chat and messaging endpoints
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and get access token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /products:
+    get:
+      tags:
+        - Products
+      summary: List products
+      description: Get paginated list of products with optional filters
+      operationId: listProducts
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: Page size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: category
+          in: query
+          description: Filter by category ID
+          schema:
+            type: string
+        - name: vendorId
+          in: query
+          description: Filter by vendor ID
+          schema:
+            type: string
+        - name: minPrice
+          in: query
+          description: Minimum price filter
+          schema:
+            type: number
+        - name: maxPrice
+          in: query
+          description: Maximum price filter
+          schema:
+            type: number
+        - name: query
+          in: query
+          description: Search query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [price, rating, createdAt]
+            default: createdAt
+        - name: order
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  totalElements:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  size:
+                    type: integer
+                  number:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    post:
+      tags:
+        - Products
+      summary: Create product
+      description: Create a new product listing
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          format: int64
+        tokenType:
+          type: string
+          enum: [Bearer]
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        type:
+          type: string
+          enum: [ADMIN, VENDOR, USER]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          format: float
+        minOrderQuantity:
+          type: integer
+        categories:
+          type: array
+          items:
+            type: string
+        specifications:
+          type: object
+          additionalProperties: true
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+        vendor:
+          $ref: '#/components/schemas/VendorSummary'
+        rating:
+          type: number
+          format: float
+        reviewCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductImage:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        type:
+          type: string
+          enum: [PRIMARY, SECONDARY]
+        sortOrder:
+          type: integer
+
+    VendorSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        rating:
+          type: number
+          format: float
+        verificationStatus:
+          type: string
+          enum: [VERIFIED, PENDING, UNVERIFIED]
+
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - price
+        - categories
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 2000
+        price:
+          type: number
+          format: float
+          minimum: 0
+        minOrderQuantity:
+          type: integer
+          minimum: 1
+          default: 1
+        categories:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        specifications:
+          type: object
+          additionalProperties: true
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: string
+                format: binary
+              type:
+                type: string
+                enum: [PRIMARY, SECONDARY]
+              sortOrder:
+                type: integer
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                    message:
+                      type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

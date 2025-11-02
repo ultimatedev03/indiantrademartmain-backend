@@ -1,0 +1,461 @@
+package com.itech.monitoring;
+
+import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.metrics.MetricsEndpoint;
+import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.data.redis.core.RedisTemplate;
+import com.itech.repository.*;
+import com.itech.model.*;
+import java.util.*;
+import java.time.*;
+import java.math.BigDecimal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import javax.management.*;
+import java.lang.management.ManagementFactory;
+
+@Service
+public class PerformanceMonitoringService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(PerformanceMonitoringService.class);
+    
+    @Autowired
+    private MetricsEndpoint metricsEndpoint;
+    
+    @Autowired
+    private HealthEndpoint healthEndpoint;
+    
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    @Autowired
+    private OrderRepository orderRepository;
+    
+    @Autowired
+    private ProductRepository productRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
+
+    @Scheduled(fixedRate = 60000) // Run every minute
+    public void monitorSystemMetrics() {
+        Map<String, Object> metrics = new HashMap<>();
+        
+        // JVM Metrics
+        metrics.put("jvm", collectJVMMetrics());
+        
+        // System Metrics
+        metrics.put("system", collectSystemMetrics());
+        
+        // Application Metrics
+        metrics.put("application", collectApplicationMetrics());
+        
+        // Store metrics in Redis with timestamp
+        String timestamp = LocalDateTime.now().toString();
+        redisTemplate.opsForHash().put("system_metrics", timestamp, metrics);
+        
+        // Keep only last 24 hours of metrics
+        cleanupOldMetrics();
+        
+        // Log any critical issues
+        checkForCriticalIssues(metrics);
+    }
+    
+    private Map<String, Object> collectJVMMetrics() {
+        Map<String, Object> jvmMetrics = new HashMap<>();
+        
+        try {
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            ObjectName memory = new ObjectName("java.lang:type=Memory");
+            
+            // Memory metrics
+            MemoryUsage heapMemory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+            MemoryUsage nonHeapMemory = ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage();
+            
+            jvmMetrics.put("heapMemoryUsed", heapMemory.getUsed());
+            jvmMetrics.put("heapMemoryMax", heapMemory.getMax());
+            jvmMetrics.put("nonHeapMemoryUsed", nonHeapMemory.getUsed());
+            jvmMetrics.put("nonHeapMemoryMax", nonHeapMemory.getMax());
+            
+            // Thread metrics
+            ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+            jvmMetrics.put("threadCount", threadBean.getThreadCount());
+            jvmMetrics.put("peakThreadCount", threadBean.getPeakThreadCount());
+            jvmMetrics.put("daemonThreadCount", threadBean.getDaemonThreadCount());
+            
+            // Garbage collection metrics
+            List<GarbageCollectorMXBean> gcBeans = ManagementFactory.getGarbageCollectorMXBeans();
+            long totalGcCount = 0;
+            long totalGcTime = 0;
+            
+            for (GarbageCollectorMXBean gcBean : gcBeans) {
+                totalGcCount += gcBean.getCollectionCount();
+                totalGcTime += gcBean.getCollectionTime();
+            }
+            
+            jvmMetrics.put("gcCount", totalGcCount);
+            jvmMetrics.put("gcTime", totalGcTime);
+            
+        } catch (Exception e) {
+            logger.error("Error collecting JVM metrics", e);
+        }
+        
+        return jvmMetrics;
+    }
+    
+    private Map<String, Object> collectSystemMetrics() {
+        Map<String, Object> systemMetrics = new HashMap<>();
+        
+        try {
+            OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
+            
+            systemMetrics.put("systemLoad", osBean.getSystemLoadAverage());
+            systemMetrics.put("availableProcessors", osBean.getAvailableProcessors());
+            
+            // Disk usage
+            File root = new File("/");
+            systemMetrics.put("totalDiskSpace", root.getTotalSpace());
+            systemMetrics.put("freeDiskSpace", root.getFreeSpace());
+            
+            // CPU usage (if available)
+            if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
+                com.sun.management.OperatingSystemMXBean sunOsBean = 
+                    (com.sun.management.OperatingSystemMXBean) osBean;
+                systemMetrics.put("processCpuLoad", sunOsBean.getProcessCpuLoad());
+                systemMetrics.put("systemCpuLoad", sunOsBean.getSystemCpuLoad());
+            }
+            
+        } catch (Exception e) {
+            logger.error("Error collecting system metrics", e);
+        }
+        
+        return systemMetrics;
+    }
+    
+    private Map<String, Object> collectApplicationMetrics() {
+        Map<String, Object> appMetrics = new HashMap<>();
+        
+        try {
+            // Active users (last 5 minutes)
+            long activeUsers = userRepository.countActiveUsersSince(
+                LocalDateTime.now().minusMinutes(5)
+            );
+            appMetrics.put("activeUsers", activeUsers);
+            
+            // Recent orders
+            long recentOrders = orderRepository.countOrdersSince(
+                LocalDateTime.now().minusMinutes(5)
+            );
+            appMetrics.put("recentOrders", recentOrders);
+            
+            // Response time metrics
+            MetricsEndpoint.MetricResponse httpMetrics = 
+                metricsEndpoint.metric("http.server.requests", null);
+            if (httpMetrics != null && !httpMetrics.getMeasurements().isEmpty()) {
+                appMetrics.put("averageResponseTime", 
+                    httpMetrics.getMeasurements().get(0).getValue());
+            }
+            
+            // Error rate
+            long totalRequests = httpMetrics != null ? 
+                httpMetrics.getMeasurements().size() : 0;
+            long errorRequests = httpMetrics != null ? 
+                httpMetrics.getMeasurements().stream()
+                    .filter(m -> m.getStatistic().toString().contains("ERROR"))
+                    .count() : 0;
+            appMetrics.put("errorRate", totalRequests > 0 ? 
+                (double) errorRequests / totalRequests : 0);
+            
+            // Database metrics
+            long productCount = productRepository.count();
+            long orderCount = orderRepository.count();
+            long userCount = userRepository.count();
+            
+            appMetrics.put("totalProducts", productCount);
+            appMetrics.put("totalOrders", orderCount);
+            appMetrics.put("totalUsers", userCount);
+            
+        } catch (Exception e) {
+            logger.error("Error collecting application metrics", e);
+        }
+        
+        return appMetrics;
+    }
+    
+    private void cleanupOldMetrics() {
+        try {
+            String yesterday = LocalDateTime.now().minusHours(24).toString();
+            Set<String> keys = redisTemplate.opsForHash().keys("system_metrics");
+            
+            for (String key : keys) {
+                if (key.compareTo(yesterday) < 0) {
+                    redisTemplate.opsForHash().delete("system_metrics", key);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error cleaning up old metrics", e);
+        }
+    }
+    
+    private void checkForCriticalIssues(Map<String, Object> metrics) {
+        try {
+            Map<String, Object> jvmMetrics = (Map<String, Object>) metrics.get("jvm");
+            Map<String, Object> systemMetrics = (Map<String, Object>) metrics.get("system");
+            Map<String, Object> appMetrics = (Map<String, Object>) metrics.get("application");
+            
+            // Check heap memory usage
+            long heapUsed = (long) jvmMetrics.get("heapMemoryUsed");
+            long heapMax = (long) jvmMetrics.get("heapMemoryMax");
+            double heapUsagePercent = (double) heapUsed / heapMax * 100;
+            
+            if (heapUsagePercent > 90) {
+                logger.warn("Critical: High heap memory usage: {}%", heapUsagePercent);
+            }
+            
+            // Check system load
+            double systemLoad = (double) systemMetrics.get("systemLoad");
+            int processors = (int) systemMetrics.get("availableProcessors");
+            
+            if (systemLoad > processors * 0.8) {
+                logger.warn("Critical: High system load: {}", systemLoad);
+            }
+            
+            // Check disk space
+            long freeDiskSpace = (long) systemMetrics.get("freeDiskSpace");
+            long totalDiskSpace = (long) systemMetrics.get("totalDiskSpace");
+            double diskUsagePercent = (double) (totalDiskSpace - freeDiskSpace) / totalDiskSpace * 100;
+            
+            if (diskUsagePercent > 90) {
+                logger.warn("Critical: Low disk space: {}% used", diskUsagePercent);
+            }
+            
+            // Check error rate
+            double errorRate = (double) appMetrics.get("errorRate");
+            if (errorRate > 0.05) { // More than 5% error rate
+                logger.warn("Critical: High error rate: {}%", errorRate * 100);
+            }
+            
+            // Check response time
+            double avgResponseTime = (double) appMetrics.get("averageResponseTime");
+            if (avgResponseTime > 1000) { // More than 1 second
+                logger.warn("Critical: High average response time: {}ms", avgResponseTime);
+            }
+            
+        } catch (Exception e) {
+            logger.error("Error checking for critical issues", e);
+        }
+    }
+
+    public Map<String, Object> getMetricsSummary(LocalDateTime startTime, LocalDateTime endTime) {
+        Map<String, Object> summary = new HashMap<>();
+        
+        try {
+            List<Map<String, Object>> metricsInRange = new ArrayList<>();
+            Set<String> keys = redisTemplate.opsForHash().keys("system_metrics");
+            
+            for (String timestamp : keys) {
+                LocalDateTime metricTime = LocalDateTime.parse(timestamp);
+                if (metricTime.isAfter(startTime) && metricTime.isBefore(endTime)) {
+                    Map<String, Object> metrics = (Map<String, Object>) 
+                        redisTemplate.opsForHash().get("system_metrics", timestamp);
+                    metricsInRange.add(metrics);
+                }
+            }
+            
+            // Calculate averages
+            summary.put("averageHeapUsage", calculateAverageHeapUsage(metricsInRange));
+            summary.put("averageSystemLoad", calculateAverageSystemLoad(metricsInRange));
+            summary.put("averageResponseTime", calculateAverageResponseTime(metricsInRange));
+            summary.put("errorRateOverTime", calculateErrorRateOverTime(metricsInRange));
+            summary.put("activeUsersTrend", calculateActiveUsersTrend(metricsInRange));
+            
+            // Peak values
+            summary.put("peakHeapUsage", calculatePeakHeapUsage(metricsInRange));
+            summary.put("peakSystemLoad", calculatePeakSystemLoad(metricsInRange));
+            summary.put("peakResponseTime", calculatePeakResponseTime(metricsInRange));
+            
+            // Performance analysis
+            summary.put("performanceAnalysis", analyzePerformance(metricsInRange));
+            
+        } catch (Exception e) {
+            logger.error("Error generating metrics summary", e);
+        }
+        
+        return summary;
+    }
+    
+    private double calculateAverageHeapUsage(List<Map<String, Object>> metrics) {
+        return metrics.stream()
+            .mapToDouble(m -> {
+                Map<String, Object> jvm = (Map<String, Object>) m.get("jvm");
+                long used = (long) jvm.get("heapMemoryUsed");
+                long max = (long) jvm.get("heapMemoryMax");
+                return (double) used / max * 100;
+            })
+            .average()
+            .orElse(0.0);
+    }
+    
+    private double calculateAverageSystemLoad(List<Map<String, Object>> metrics) {
+        return metrics.stream()
+            .mapToDouble(m -> {
+                Map<String, Object> system = (Map<String, Object>) m.get("system");
+                return (double) system.get("systemLoad");
+            })
+            .average()
+            .orElse(0.0);
+    }
+    
+    private double calculateAverageResponseTime(List<Map<String, Object>> metrics) {
+        return metrics.stream()
+            .mapToDouble(m -> {
+                Map<String, Object> app = (Map<String, Object>) m.get("application");
+                return (double) app.get("averageResponseTime");
+            })
+            .average()
+            .orElse(0.0);
+    }
+    
+    private Map<String, Double> calculateErrorRateOverTime(List<Map<String, Object>> metrics) {
+        Map<String, Double> errorRates = new TreeMap<>();
+        
+        metrics.forEach(m -> {
+            Map<String, Object> app = (Map<String, Object>) m.get("application");
+            double errorRate = (double) app.get("errorRate");
+            String timestamp = LocalDateTime.now().toString(); // Use actual timestamp from metrics
+            errorRates.put(timestamp, errorRate);
+        });
+        
+        return errorRates;
+    }
+    
+    private Map<String, Integer> calculateActiveUsersTrend(List<Map<String, Object>> metrics) {
+        Map<String, Integer> userTrend = new TreeMap<>();
+        
+        metrics.forEach(m -> {
+            Map<String, Object> app = (Map<String, Object>) m.get("application");
+            int activeUsers = (int) app.get("activeUsers");
+            String timestamp = LocalDateTime.now().toString(); // Use actual timestamp from metrics
+            userTrend.put(timestamp, activeUsers);
+        });
+        
+        return userTrend;
+    }
+    
+    private double calculatePeakHeapUsage(List<Map<String, Object>> metrics) {
+        return metrics.stream()
+            .mapToDouble(m -> {
+                Map<String, Object> jvm = (Map<String, Object>) m.get("jvm");
+                long used = (long) jvm.get("heapMemoryUsed");
+                long max = (long) jvm.get("heapMemoryMax");
+                return (double) used / max * 100;
+            })
+            .max()
+            .orElse(0.0);
+    }
+    
+    private double calculatePeakSystemLoad(List<Map<String, Object>> metrics) {
+        return metrics.stream()
+            .mapToDouble(m -> {
+                Map<String, Object> system = (Map<String, Object>) m.get("system");
+                return (double) system.get("systemLoad");
+            })
+            .max()
+            .orElse(0.0);
+    }
+    
+    private double calculatePeakResponseTime(List<Map<String, Object>> metrics) {
+        return metrics.stream()
+            .mapToDouble(m -> {
+                Map<String, Object> app = (Map<String, Object>) m.get("application");
+                return (double) app.get("averageResponseTime");
+            })
+            .max()
+            .orElse(0.0);
+    }
+    
+    private Map<String, Object> analyzePerformance(List<Map<String, Object>> metrics) {
+        Map<String, Object> analysis = new HashMap<>();
+        
+        // Calculate trends
+        double heapUsageTrend = calculateTrend(metrics, m -> {
+            Map<String, Object> jvm = (Map<String, Object>) m.get("jvm");
+            long used = (long) jvm.get("heapMemoryUsed");
+            long max = (long) jvm.get("heapMemoryMax");
+            return (double) used / max * 100;
+        });
+        
+        double responseTimeTrend = calculateTrend(metrics, m -> {
+            Map<String, Object> app = (Map<String, Object>) m.get("application");
+            return (double) app.get("averageResponseTime");
+        });
+        
+        // Analyze bottlenecks
+        List<String> bottlenecks = identifyBottlenecks(metrics);
+        
+        // Generate recommendations
+        List<String> recommendations = generateRecommendations(metrics);
+        
+        analysis.put("heapUsageTrend", heapUsageTrend);
+        analysis.put("responseTimeTrend", responseTimeTrend);
+        analysis.put("bottlenecks", bottlenecks);
+        analysis.put("recommendations", recommendations);
+        
+        return analysis;
+    }
+    
+    private double calculateTrend(List<Map<String, Object>> metrics, 
+            java.util.function.Function<Map<String, Object>, Double> valueExtractor) {
+        if (metrics.size() < 2) return 0.0;
+        
+        double firstValue = valueExtractor.apply(metrics.get(0));
+        double lastValue = valueExtractor.apply(metrics.get(metrics.size() - 1));
+        
+        return (lastValue - firstValue) / metrics.size();
+    }
+    
+    private List<String> identifyBottlenecks(List<Map<String, Object>> metrics) {
+        List<String> bottlenecks = new ArrayList<>();
+        
+        // Check for memory bottlenecks
+        if (calculateAverageHeapUsage(metrics) > 80) {
+            bottlenecks.add("High memory usage");
+        }
+        
+        // Check for CPU bottlenecks
+        if (calculateAverageSystemLoad(metrics) > 0.8) {
+            bottlenecks.add("High CPU usage");
+        }
+        
+        // Check for response time bottlenecks
+        if (calculateAverageResponseTime(metrics) > 1000) {
+            bottlenecks.add("Slow response times");
+        }
+        
+        return bottlenecks;
+    }
+    
+    private List<String> generateRecommendations(List<Map<String, Object>> metrics) {
+        List<String> recommendations = new ArrayList<>();
+        
+        double avgHeapUsage = calculateAverageHeapUsage(metrics);
+        double avgSystemLoad = calculateAverageSystemLoad(metrics);
+        double avgResponseTime = calculateAverageResponseTime(metrics);
+        
+        if (avgHeapUsage > 80) {
+            recommendations.add("Consider increasing heap memory or optimizing memory usage");
+        }
+        
+        if (avgSystemLoad > 0.8) {
+            recommendations.add("Consider scaling up CPU resources or optimizing CPU-intensive operations");
+        }
+        
+        if (avgResponseTime > 1000) {
+            recommendations.add("Optimize database queries and implement caching");
+        }
+        
+        return recommendations;
+    }
+}

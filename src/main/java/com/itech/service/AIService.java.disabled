@@ -1,0 +1,207 @@
+package com.itech.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.itech.repository.ProductRepository;
+import com.itech.repository.UserRepository;
+import com.itech.repository.OrderRepository;
+import com.itech.model.Product;
+import com.itech.model.User;
+import com.itech.model.Order;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+
+@Service
+public class AIService {
+    
+    @Autowired
+    private ProductRepository productRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
+    
+    @Autowired
+    private OrderRepository orderRepository;
+
+    public List<Product> getPersonalizedRecommendations(Long userId, int limit) {
+        // Get user's purchase history
+        List<Order> userOrders = orderRepository.findByBuyerId(userId);
+        
+        // Extract categories and products the user has shown interest in
+        Map<Long, Integer> categoryInterests = new HashMap<>();
+        Map<String, Integer> attributeInterests = new HashMap<>();
+        
+        userOrders.forEach(order -> {
+            order.getOrderItems().forEach(item -> {
+                // Track category interests
+                Long categoryId = item.getProduct().getCategoryId();
+                categoryInterests.merge(categoryId, 1, Integer::sum);
+                
+                // Track attribute interests (brand, material, etc.)
+                String brand = item.getProduct().getBrand();
+                if (brand != null) {
+                    attributeInterests.merge("brand:" + brand, 1, Integer::sum);
+                }
+            });
+        });
+        
+        // Find similar products based on user interests
+        List<Product> recommendations = productRepository.findByCategoryIdIn(
+            categoryInterests.keySet().stream().collect(Collectors.toList())
+        );
+        
+        // Apply collaborative filtering
+        recommendations.sort((p1, p2) -> {
+            int score1 = calculateRecommendationScore(p1, categoryInterests, attributeInterests);
+            int score2 = calculateRecommendationScore(p2, categoryInterests, attributeInterests);
+            return score2 - score1;
+        });
+        
+        return recommendations.stream()
+            .limit(limit)
+            .collect(Collectors.toList());
+    }
+    
+    private int calculateRecommendationScore(Product product, 
+            Map<Long, Integer> categoryInterests, 
+            Map<String, Integer> attributeInterests) {
+        int score = 0;
+        
+        // Category match
+        Integer categoryScore = categoryInterests.get(product.getCategoryId());
+        if (categoryScore != null) {
+            score += categoryScore * 10;
+        }
+        
+        // Attribute matches
+        if (product.getBrand() != null) {
+            Integer brandScore = attributeInterests.get("brand:" + product.getBrand());
+            if (brandScore != null) {
+                score += brandScore * 5;
+            }
+        }
+        
+        // Add more scoring factors based on product attributes
+        
+        return score;
+    }
+
+    public List<Product> getSmartSearchResults(String query, Map<String, String> filters) {
+        // Implement smart search using Elasticsearch or similar
+        // This is a simplified version
+        List<Product> results = productRepository.findByNameContainingOrDescriptionContaining(
+            query, query
+        );
+        
+        // Apply AI-based ranking
+        results.sort((p1, p2) -> {
+            double score1 = calculateSearchRelevanceScore(p1, query, filters);
+            double score2 = calculateSearchRelevanceScore(p2, query, filters);
+            return Double.compare(score2, score1);
+        });
+        
+        return results;
+    }
+    
+    private double calculateSearchRelevanceScore(Product product, String query, Map<String, String> filters) {
+        double score = 0.0;
+        
+        // Basic text matching
+        if (product.getName().toLowerCase().contains(query.toLowerCase())) {
+            score += 10.0;
+        }
+        if (product.getDescription().toLowerCase().contains(query.toLowerCase())) {
+            score += 5.0;
+        }
+        
+        // Filter matching
+        if (filters != null) {
+            for (Map.Entry<String, String> filter : filters.entrySet()) {
+                switch (filter.getKey()) {
+                    case "category":
+                        if (product.getCategoryId().toString().equals(filter.getValue())) {
+                            score += 3.0;
+                        }
+                        break;
+                    case "brand":
+                        if (product.getBrand().equals(filter.getValue())) {
+                            score += 2.0;
+                        }
+                        break;
+                    // Add more filter cases
+                }
+            }
+        }
+        
+        // Product popularity
+        score += Math.log(product.getViewsCount() + 1);
+        score += Math.log(product.getLikesCount() + 1);
+        
+        return score;
+    }
+
+    public Map<String, Object> generateProductInsights(Long productId) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("Product not found"));
+            
+        Map<String, Object> insights = new HashMap<>();
+        
+        // Sales trends
+        List<Order> productOrders = orderRepository.findByProductId(productId);
+        insights.put("totalSales", productOrders.size());
+        insights.put("averageOrderValue", calculateAverageOrderValue(productOrders));
+        
+        // Customer segments
+        insights.put("customerSegments", analyzeCustomerSegments(productOrders));
+        
+        // Performance metrics
+        insights.put("conversionRate", calculateConversionRate(product));
+        insights.put("viewToOrderRatio", calculateViewToOrderRatio(product, productOrders));
+        
+        return insights;
+    }
+    
+    private double calculateAverageOrderValue(List<Order> orders) {
+        if (orders.isEmpty()) return 0.0;
+        double total = orders.stream()
+            .mapToDouble(Order::getFinalAmount)
+            .sum();
+        return total / orders.size();
+    }
+    
+    private Map<String, Integer> analyzeCustomerSegments(List<Order> orders) {
+        Map<String, Integer> segments = new HashMap<>();
+        orders.forEach(order -> {
+            String segment = determineCustomerSegment(order.getBuyer());
+            segments.merge(segment, 1, Integer::sum);
+        });
+        return segments;
+    }
+    
+    private String determineCustomerSegment(User buyer) {
+        // Implement segmentation logic based on buyer attributes
+        // This is a simplified version
+        if (buyer.getTotalOrders() > 100) {
+            return "HIGH_VALUE";
+        } else if (buyer.getTotalOrders() > 50) {
+            return "MEDIUM_VALUE";
+        } else {
+            return "NEW_CUSTOMER";
+        }
+    }
+    
+    private double calculateConversionRate(Product product) {
+        if (product.getViewsCount() == 0) return 0.0;
+        return (double) product.getLikesCount() / product.getViewsCount();
+    }
+    
+    private double calculateViewToOrderRatio(Product product, List<Order> orders) {
+        if (product.getViewsCount() == 0) return 0.0;
+        return (double) orders.size() / product.getViewsCount();
+    }
+}

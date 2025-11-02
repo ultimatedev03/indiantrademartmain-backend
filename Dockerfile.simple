@@ -1,0 +1,24 @@
+FROM openjdk:17-jdk-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy the JAR file
+COPY target/itech-backend-0.0.1-SNAPSHOT.jar app.jar
+
+# Create a non-root user
+RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Expose port
+EXPOSE 8080
+
+# Environment variables
+ENV SPRING_PROFILES_ACTIVE=production
+ENV DATABASE_URL=jdbc:mysql://indiantrademart-db.czswk0o224zf.ap-south-1.rds.amazonaws.com:3306/itech_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
+ENV JDBC_DATABASE_USERNAME=itechadmin
+ENV JDBC_DATABASE_PASSWORD=ITechMart2025!
+ENV JWT_SECRET=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2g3h4i5j6k7l8m9n0p1q2r3s4t5u6v7w8x9y0z1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3g4h5i6j7k8l9m0n1o2p3q4r5s6t7u8v9w0x1y2z3a4b5c6d7e8f9g0h1i2j3k4l5m6n7o8p9q0r1s2t3u4v5w6x7y8z9a0
+
+# Run the application
+CMD ["java", "-jar", "app.jar"]

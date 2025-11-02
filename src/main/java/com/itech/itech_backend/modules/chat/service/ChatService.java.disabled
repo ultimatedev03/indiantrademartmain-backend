@@ -1,0 +1,132 @@
+package com.itech.itech_backend.modules.chat.service;
+
+import com.itech.itech_backend.modules.chat.model.ChatConversation;
+import com.itech.itech_backend.modules.chat.model.ChatMessage;
+import com.itech.itech_backend.modules.chat.repository.ChatConversationRepository;
+import com.itech.itech_backend.modules.chat.repository.ChatMessageRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class ChatService {
+
+    private final ChatMessageRepository messageRepository;
+    private final ChatConversationRepository conversationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    @Transactional
+    public ChatMessage sendMessage(ChatMessage message) {
+        log.info("Sending message: {}", message);
+
+        // Get or create conversation
+        ChatConversation conversation = getOrCreateConversation(
+                message.getSenderId(), 
+                message.getReceiverId(), 
+                ChatConversation.ConversationType.DIRECT
+        );
+
+        // Set conversation ID
+        message.setConversationId(conversation.getConversationId());
+
+        // Save message
+        message = messageRepository.save(message);
+
+        // Update conversation
+        conversation.updateLastMessage(message);
+        conversationRepository.save(conversation);
+
+        // Send to WebSocket subscribers
+        messagingTemplate.convertAndSendToUser(
+                message.getReceiverId(),
+                "/queue/messages",
+                message
+        );
+
+        return message;
+    }
+
+    public ChatMessage sendSystemMessage(
+            String receiverId, 
+            String content, 
+            ChatMessage.MessageType type) {
+        
+        ChatMessage message = ChatMessage.builder()
+                .senderId("SYSTEM")
+                .receiverId(receiverId)
+                .content(content)
+                .type(type)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return sendMessage(message);
+    }
+
+    public ChatConversation getOrCreateConversation(
+            String participant1Id,
+            String participant2Id,
+            ChatConversation.ConversationType type) {
+
+        // Try to find existing conversation
+        Optional<ChatConversation> existingConversation = conversationRepository
+                .findByParticipants(participant1Id, participant2Id);
+
+        if (existingConversation.isPresent()) {
+            return existingConversation.get();
+        }
+
+        // Create new conversation
+        ChatConversation conversation = ChatConversation.builder()
+                .conversationId(generateConversationId())
+                .participant1Id(participant1Id)
+                .participant2Id(participant2Id)
+                .type(type)
+                .unreadCountP1(0)
+                .unreadCountP2(0)
+                .build();
+
+        return conversationRepository.save(conversation);
+    }
+
+    public Page<ChatMessage> getMessages(
+            String conversationId, 
+            Pageable pageable) {
+        return messageRepository.findByConversationIdOrderByCreatedAtDesc(
+                conversationId, 
+                pageable
+        );
+    }
+
+    public List<ChatConversation> getConversations(String userId) {
+        return conversationRepository.findByParticipantId(userId);
+    }
+
+    public void markMessagesAsRead(
+            String conversationId, 
+            String userId) {
+        
+        ChatConversation conversation = conversationRepository
+                .findByConversationId(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        conversation.clearUnreadCount(userId);
+        conversationRepository.save(conversation);
+
+        messageRepository.markMessagesAsRead(conversationId, userId);
+    }
+
+    private String generateConversationId() {
+        return "CONV_" + UUID.randomUUID().toString();
+    }
+}

@@ -1,0 +1,187 @@
+package com.itech.itech_backend.modules.ai.service;
+
+import com.itech.itech_backend.modules.buyer.model.Buyer;
+import com.itech.itech_backend.modules.product.model.Product;
+import com.itech.itech_backend.modules.vendor.model.Vendor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AIModelService {
+
+    @Value("${ai.model.endpoint}")
+    private String aiModelEndpoint;
+
+    private final RestTemplate restTemplate;
+
+    /**
+     * Product recommendation based on user behavior and preferences
+     */
+    public List<Product> getPersonalizedRecommendations(Buyer buyer, List<Product> recentViews) {
+        Map<String, Object> requestBody = Map.of(
+            "buyer_id", buyer.getId(),
+            "recent_views", recentViews,
+            "preferences", buyer.getPreferences(),
+            "purchase_history", buyer.getOrderHistory()
+        );
+        
+        return restTemplate.postForObject(
+            aiModelEndpoint + "/recommendations/personalized",
+            requestBody,
+            List.class
+        );
+    }
+
+    /**
+     * Predict optimal price for products based on market data
+     */
+    public Map<String, Double> predictOptimalPricing(Product product, Map<String, Object> marketData) {
+        Map<String, Object> requestBody = Map.of(
+            "product_details", product,
+            "market_data", marketData,
+            "category_trends", getCategoryTrends(product.getCategory()),
+            "competitor_prices", getCompetitorPrices(product)
+        );
+
+        return restTemplate.postForObject(
+            aiModelEndpoint + "/predictions/pricing",
+            requestBody,
+            Map.class
+        );
+    }
+
+    /**
+     * Score leads based on behavior and likelihood of conversion
+     */
+    public double calculateLeadScore(Buyer buyer, Vendor vendor) {
+        Map<String, Object> requestBody = Map.of(
+            "buyer_profile", buyer,
+            "buyer_behavior", getBuyerBehavior(buyer),
+            "vendor_profile", vendor,
+            "interaction_history", getInteractionHistory(buyer, vendor),
+            "market_segment", buyer.getMarketSegment()
+        );
+
+        return restTemplate.postForObject(
+            aiModelEndpoint + "/scoring/lead",
+            requestBody,
+            Double.class
+        );
+    }
+
+    /**
+     * Predict market trends and demand for products
+     */
+    public Map<String, Object> predictMarketTrends(String category, int timeframe) {
+        Map<String, Object> requestBody = Map.of(
+            "category", category,
+            "timeframe", timeframe,
+            "historical_data", getHistoricalData(category),
+            "market_indicators", getMarketIndicators(),
+            "seasonal_factors", getSeasonalFactors()
+        );
+
+        return restTemplate.postForObject(
+            aiModelEndpoint + "/predictions/market-trends",
+            requestBody,
+            Map.class
+        );
+    }
+
+    /**
+     * Generate business insights from platform data
+     */
+    public Map<String, Object> generateBusinessInsights(Vendor vendor) {
+        Map<String, Object> requestBody = Map.of(
+            "vendor_profile", vendor,
+            "sales_data", getVendorSalesData(vendor),
+            "customer_data", getVendorCustomerData(vendor),
+            "market_position", getVendorMarketPosition(vendor),
+            "competitor_analysis", getCompetitorAnalysis(vendor)
+        );
+
+        return restTemplate.postForObject(
+            aiModelEndpoint + "/analytics/business-insights",
+            requestBody,
+            Map.class
+        );
+    }
+
+    /**
+     * Detect potential fraud in transactions
+     */
+    public Map<String, Object> detectFraudRisk(Map<String, Object> transaction) {
+        return restTemplate.postForObject(
+            aiModelEndpoint + "/security/fraud-detection",
+            transaction,
+            Map.class
+        );
+    }
+
+    private Map<String, Object> getBuyerBehavior(Buyer buyer) {
+        // Analyze buyer's browsing patterns, search history, and engagement
+        return Map.of(
+            "search_patterns", buyer.getSearchHistory(),
+            "engagement_metrics", buyer.getEngagementMetrics(),
+            "response_rates", buyer.getResponseRates()
+        );
+    }
+
+    private List<Map<String, Object>> getInteractionHistory(Buyer buyer, Vendor vendor) {
+        // Get history of interactions between buyer and vendor
+        return List.of(); // Implement interaction history retrieval
+    }
+
+    private Map<String, Object> getHistoricalData(String category) {
+        // Get historical sales and demand data for category
+        return Map.of(); // Implement historical data retrieval
+    }
+
+    private Map<String, Object> getMarketIndicators() {
+        // Get current market indicators and economic factors
+        return Map.of(); // Implement market indicators retrieval
+    }
+
+    private Map<String, Object> getSeasonalFactors() {
+        // Get seasonal trends and patterns
+        return Map.of(); // Implement seasonal factors retrieval
+    }
+
+    private Map<String, Object> getCategoryTrends(String category) {
+        // Get current trends in product category
+        return Map.of(); // Implement category trends retrieval
+    }
+
+    private Map<String, Object> getCompetitorPrices(Product product) {
+        // Get competitor pricing data for similar products
+        return Map.of(); // Implement competitor price retrieval
+    }
+
+    private Map<String, Object> getVendorSalesData(Vendor vendor) {
+        // Get detailed sales data for vendor
+        return Map.of(); // Implement vendor sales data retrieval
+    }
+
+    private Map<String, Object> getVendorCustomerData(Vendor vendor) {
+        // Get customer behavior and demographics data
+        return Map.of(); // Implement vendor customer data retrieval
+    }
+
+    private Map<String, Object> getVendorMarketPosition(Vendor vendor) {
+        // Analyze vendor's position in the market
+        return Map.of(); // Implement market position analysis
+    }
+
+    private Map<String, Object> getCompetitorAnalysis(Vendor vendor) {
+        // Analyze competitor performance and strategies
+        return Map.of(); // Implement competitor analysis
+    }
+}

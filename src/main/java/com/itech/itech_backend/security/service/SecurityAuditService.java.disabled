@@ -1,0 +1,188 @@
+package com.itech.itech_backend.security.service;
+
+import com.itech.itech_backend.modules.core.model.User;
+import com.itech.itech_backend.modules.core.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Service
+@Slf4j
+@RequiredArgsConstructor
+public class SecurityAuditService {
+
+    private final UserRepository userRepository;
+    private final Map<String, Integer> failedLoginAttempts = new ConcurrentHashMap<>();
+    private final Map<String, LocalDateTime> suspiciousActivities = new ConcurrentHashMap<>();
+
+    public void recordLoginAttempt(String username, boolean success) {
+        if (!success) {
+            failedLoginAttempts.compute(username, (key, count) -> count == null ? 1 : count + 1);
+            checkFailedAttempts(username);
+        } else {
+            failedLoginAttempts.remove(username);
+        }
+    }
+
+    public void recordSuspiciousActivity(String username, String activity, String details) {
+        log.warn("Suspicious activity detected - User: {}, Activity: {}, Details: {}", 
+            username, activity, details);
+        
+        suspiciousActivities.put(username, LocalDateTime.now());
+        
+        // Check for multiple suspicious activities
+        if (isSuspiciousActivityThresholdExceeded(username)) {
+            handleSuspiciousActivityThresholdExceeded(username);
+        }
+    }
+
+    @Scheduled(cron = "0 0 * * * *") // Every hour
+    public void auditUserAccounts() {
+        List<User> users = userRepository.findAll();
+        
+        for (User user : users) {
+            // Check password expiry
+            if (isPasswordExpired(user)) {
+                notifyPasswordExpiry(user);
+            }
+
+            // Check inactive accounts
+            if (isAccountInactive(user)) {
+                notifyInactiveAccount(user);
+            }
+
+            // Check suspicious login patterns
+            if (hasSuspiciousLoginPattern(user)) {
+                notifySuspiciousLoginPattern(user);
+            }
+        }
+    }
+
+    @Scheduled(cron = "0 0 0 * * *") // Daily at midnight
+    public void generateSecurityReport() {
+        Map<String, Object> report = new HashMap<>();
+        
+        // Collect statistics
+        report.put("failed_login_attempts", failedLoginAttempts.size());
+        report.put("suspicious_activities", suspiciousActivities.size());
+        report.put("locked_accounts", countLockedAccounts());
+        report.put("expired_passwords", countExpiredPasswords());
+        
+        // Log report
+        log.info("Daily security report: {}", report);
+    }
+
+    @Async
+    public void auditUserAction(String action, String resourceType, String resourceId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            String username = auth.getName();
+            
+            // Log action
+            log.info("User action audit - User: {}, Action: {}, Resource: {} ({})", 
+                username, action, resourceType, resourceId);
+            
+            // Check for suspicious patterns
+            if (isActionSuspicious(username, action, resourceType)) {
+                recordSuspiciousActivity(username, "SUSPICIOUS_ACTION_PATTERN",
+                    String.format("Multiple %s actions on %s", action, resourceType));
+            }
+        }
+    }
+
+    private void checkFailedAttempts(String username) {
+        int attempts = failedLoginAttempts.get(username);
+        
+        if (attempts >= 5) {
+            // Lock account
+            User user = userRepository.findByUsername(username);
+            if (user != null) {
+                user.setLocked(true);
+                user.setLockedReason("Multiple failed login attempts");
+                userRepository.save(user);
+                
+                log.warn("Account locked due to multiple failed login attempts - Username: {}", 
+                    username);
+            }
+        } else if (attempts >= 3) {
+            log.warn("Multiple failed login attempts detected - Username: {}, Attempts: {}", 
+                username, attempts);
+        }
+    }
+
+    private boolean isSuspiciousActivityThresholdExceeded(String username) {
+        long recentActivities = suspiciousActivities.entrySet().stream()
+            .filter(e -> e.getKey().equals(username))
+            .filter(e -> e.getValue().isAfter(LocalDateTime.now().minusHours(1)))
+            .count();
+            
+        return recentActivities >= 3;
+    }
+
+    private void handleSuspiciousActivityThresholdExceeded(String username) {
+        User user = userRepository.findByUsername(username);
+        if (user != null) {
+            user.setLocked(true);
+            user.setLockedReason("Multiple suspicious activities detected");
+            userRepository.save(user);
+            
+            log.warn("Account locked due to suspicious activities - Username: {}", username);
+        }
+    }
+
+    private boolean isPasswordExpired(User user) {
+        return user.getPasswordLastChanged() != null && 
+               user.getPasswordLastChanged().isBefore(LocalDateTime.now().minusDays(90));
+    }
+
+    private boolean isAccountInactive(User user) {
+        return user.getLastLoginDate() != null && 
+               user.getLastLoginDate().isBefore(LocalDateTime.now().minusDays(30));
+    }
+
+    private boolean hasSuspiciousLoginPattern(User user) {
+        // Implement logic to detect suspicious login patterns
+        // Example: Multiple logins from different locations in short time
+        return false;
+    }
+
+    private void notifyPasswordExpiry(User user) {
+        log.info("Password expiry notification - User: {}", user.getUsername());
+        // Implement notification logic
+    }
+
+    private void notifyInactiveAccount(User user) {
+        log.info("Inactive account notification - User: {}", user.getUsername());
+        // Implement notification logic
+    }
+
+    private void notifySuspiciousLoginPattern(User user) {
+        log.warn("Suspicious login pattern detected - User: {}", user.getUsername());
+        // Implement notification logic
+    }
+
+    private long countLockedAccounts() {
+        return userRepository.countByLocked(true);
+    }
+
+    private long countExpiredPasswords() {
+        return userRepository.countByPasswordLastChangedBefore(
+            LocalDateTime.now().minusDays(90));
+    }
+
+    private boolean isActionSuspicious(String username, String action, String resourceType) {
+        // Implement logic to detect suspicious action patterns
+        // Example: Too many delete operations in short time
+        return false;
+    }
+}

@@ -1,0 +1,101 @@
+# Render Blueprint for Indian Trade Mart Backend
+# This file defines the infrastructure and deployment configuration for Render
+
+services:
+  # Main Spring Boot Application
+  - type: web
+    name: itech-backend
+    runtime: docker
+    repo: https://github.com/Dipk2003/indiantradebackend.git
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    
+    # Resource allocation
+    plan: starter  # Can be upgraded to standard/pro
+    
+    # Environment variables - Critical ones defined here, others in Render Dashboard
+    envVars:
+      # Server configuration - CRITICAL for Render deployment
+      - key: PORT
+        value: 10000
+      - key: SPRING_PROFILES_ACTIVE
+        value: render
+        
+      # Database configuration (using individual components for reliability)
+      - key: JDBC_DATABASE_USERNAME
+        sync: false  # Set in Render Dashboard
+      - key: JDBC_DATABASE_PASSWORD
+        sync: false  # Set in Render Dashboard
+        
+      # Redis configuration
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: 6379
+        
+      # Security
+      - key: JWT_SECRET
+        sync: false  # Set this in Render dashboard
+        
+      # Payment gateway
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+        
+      # Email service
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+        
+      # AWS S3
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_S3_REGION
+        value: us-west-2
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+        
+      # CORS configuration
+      - key: ALLOWED_ORIGINS
+        value: "*"  # Update this with your frontend domain
+    
+    # Health check endpoint (optimized for faster startup)
+    healthCheckPath: /actuator/health
+    
+    # Extended startup timeout for Java applications
+    startCommand: echo "Container starting with optimized JVM settings"
+    
+    # Service configuration
+    numInstances: 1
+    maxSurge: 1
+    maxUnavailable: 0
+    
+    # Build settings
+    buildCommand: echo "Building via Dockerfile"
+    startCommand: echo "Starting via Dockerfile CMD"
+    
+    # Auto-deploy on git push
+    autoDeploy: true
+
+# Database service (if you want to use Render's PostgreSQL)
+databases:
+  - name: itech-postgres
+    databaseName: itech_db
+    user: itech_user
+    plan: free  # Can be upgraded to starter/standard/pro
+    
+# Redis service (if you want to use Render's Redis)  
+# Note: Redis is only available on paid plans
+# - type: redis
+#   name: itech-redis
+#   plan: starter
+#   maxMemory: 100MB

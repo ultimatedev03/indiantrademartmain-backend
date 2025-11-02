@@ -1,0 +1,2306 @@
+{
+  "info": {
+    "name": "Indian Trade Mart - Complete API Collection",
+    "description": "Comprehensive API documentation for the Indian Trade Mart B2B marketplace backend system",
+    "version": "1.0.0",
+    "baseUrl": "{{BASE_URL}}",
+    "variables": [
+      {
+        "key": "BASE_URL",
+        "value": "http://localhost:8080",
+        "type": "string"
+      },
+      {
+        "key": "AUTH_TOKEN",
+        "value": "",
+        "type": "string"
+      }
+    ]
+  },
+  "folders": [
+    {
+      "name": "Authentication",
+      "description": "User registration, login, and authentication endpoints",
+      "requests": [
+        {
+          "name": "User Registration",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/register",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+919876543210\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Register a new regular user (buyer)",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Vendor Registration",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/vendor/register",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"name\": \"Vendor Name\",\n  \"email\": \"vendor@example.com\",\n  \"phone\": \"+919876543210\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Register a new vendor account",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Admin Registration",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/admin/register",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"name\": \"Admin Name\",\n  \"email\": \"admin@example.com\",\n  \"phone\": \"+919876543210\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Register a new admin account",
+          "auth": "None",
+          "roleAccess": "Admin/CTO"
+        },
+        {
+          "name": "Support Registration",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/support/register",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"name\": \"Support Agent\",\n  \"email\": \"support@example.com\",\n  \"phone\": \"+919876543210\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Register a new support account",
+          "auth": "None",
+          "roleAccess": "Admin/CTO"
+        },
+        {
+          "name": "CTO Registration",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/cto/register",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"name\": \"CTO Name\",\n  \"email\": \"cto@example.com\",\n  \"phone\": \"+919876543210\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Register a new CTO account",
+          "auth": "None",
+          "roleAccess": "CTO"
+        },
+        {
+          "name": "Data Entry Registration",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/data-entry/register",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"name\": \"Data Entry Person\",\n  \"email\": \"dataentry@example.com\",\n  \"phone\": \"+919876543210\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Register a new data entry account",
+          "auth": "None",
+          "roleAccess": "Admin/CTO"
+        },
+        {
+          "name": "Generic Login",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/login",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"emailOrPhone\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Login for any user type",
+          "auth": "None",
+          "roleAccess": "Public",
+          "response": "{\n  \"token\": \"jwt_token_string\",\n  \"refreshToken\": \"refresh_token_string\",\n  \"user\": {\n    \"id\": 1,\n    \"name\": \"User Name\",\n    \"email\": \"user@example.com\",\n    \"role\": \"ROLE_USER\",\n    \"userType\": \"user\"\n  }\n}"
+        },
+        {
+          "name": "Buyer Login",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/buyer/login",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"emailOrPhone\": \"buyer@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Buyer-specific login with role validation",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Vendor/Seller Login",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/seller/login",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"emailOrPhone\": \"vendor@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Vendor/Seller-specific login with role validation",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Admin Login",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/admin/login",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"emailOrPhone\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Admin-specific login with role validation",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Support Login",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/support/login",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"emailOrPhone\": \"support@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Support-specific login with role validation",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "CTO Login",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/cto/login",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"emailOrPhone\": \"cto@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "CTO-specific login with role validation",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Data Entry Login",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/data-entry/login",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"emailOrPhone\": \"dataentry@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Data Entry-specific login with role validation",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Send Login OTP",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/login-otp",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"emailOrPhone\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Send OTP for login authentication",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Verify OTP",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/verify-otp",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"emailOrPhone\": \"user@example.com\",\n  \"otp\": \"123456\"\n}"
+          },
+          "description": "Verify OTP and get JWT token",
+          "auth": "None",
+          "roleAccess": "Public",
+          "response": "{\n  \"token\": \"jwt_token_string\",\n  \"refreshToken\": \"refresh_token_string\",\n  \"user\": {\n    \"id\": 1,\n    \"name\": \"User Name\",\n    \"email\": \"user@example.com\",\n    \"role\": \"ROLE_USER\",\n    \"userType\": \"user\"\n  }\n}"
+        },
+        {
+          "name": "Forgot Password",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/forgot-password",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"user@example.com\"\n}"
+          },
+          "description": "Send password reset OTP to email",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Reset Password with OTP",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/verify-forgot-password-otp",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"newpassword123\"\n}"
+          },
+          "description": "Verify OTP and reset password",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Change Password",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/change-password",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"currentPassword\": \"oldpassword123\",\n  \"newPassword\": \"newpassword123\"\n}"
+          },
+          "description": "Change password for logged-in user",
+          "auth": "Bearer Token",
+          "roleAccess": "Authenticated User"
+        },
+        {
+          "name": "Get Profile",
+          "method": "GET",
+          "url": "{{BASE_URL}}/auth/profile",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get current user profile",
+          "auth": "Bearer Token",
+          "roleAccess": "Authenticated User"
+        },
+        {
+          "name": "Update Profile",
+          "method": "PUT",
+          "url": "{{BASE_URL}}/auth/profile",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"name\": \"Updated Name\",\n  \"phone\": \"+919876543210\",\n  \"address\": \"Updated Address\"\n}"
+          },
+          "description": "Update current user profile",
+          "auth": "Bearer Token",
+          "roleAccess": "Authenticated User"
+        },
+        {
+          "name": "Check Email Role",
+          "method": "POST",
+          "url": "{{BASE_URL}}/auth/check-email-role",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"user@example.com\"\n}"
+          },
+          "description": "Check user role by email",
+          "auth": "None",
+          "roleAccess": "Public"
+        }
+      ]
+    },
+    {
+      "name": "User Management",
+      "description": "User management endpoints for admins",
+      "requests": [
+        {
+          "name": "Get All Users",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get all users (admin only)",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Users by Role",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/role/ADMIN",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get users by specific role",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get User by ID",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/1",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get user by ID",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Self"
+        },
+        {
+          "name": "Get User by Email",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/email/user@example.com",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get user by email",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Self"
+        },
+        {
+          "name": "Get User by Phone",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/phone/9876543210",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get user by phone number",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Self"
+        },
+        {
+          "name": "Get Verified Users",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/verified",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get all verified users",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Unverified Users",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/unverified",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get all unverified users",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Active Users",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/active",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get all active users",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Inactive Users",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/inactive",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get all inactive users",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Update User",
+          "method": "PUT",
+          "url": "{{BASE_URL}}/api/users/1",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"name\": \"Updated Name\",\n  \"email\": \"updated@example.com\",\n  \"phone\": \"+919876543210\",\n  \"active\": true\n}"
+          },
+          "description": "Update user information",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Self"
+        },
+        {
+          "name": "Delete User",
+          "method": "DELETE",
+          "url": "{{BASE_URL}}/api/users/1",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Delete user account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Activate User",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/users/1/activate",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Activate user account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Deactivate User",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/users/1/deactivate",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Deactivate user account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get User Count",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/count",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get total user count",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get User Count by Role",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/count/role/ADMIN",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get user count by specific role",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Check if Email Exists",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/exists/email/user@example.com",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Check if email exists in system",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Check if Phone Exists",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/exists/phone/9876543210",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Check if phone number exists in system",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Regular Users",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/users/regular",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get all regular users (ROLE_USER)",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        }
+      ]
+    },
+    {
+      "name": "Buyer Management",
+      "description": "Buyer management endpoints",
+      "requests": [
+        {
+          "name": "Create Buyer",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"buyer@example.com\",\n  \"phone\": \"+919876543210\",\n  \"businessName\": \"ABC Trading\",\n  \"contactPersonName\": \"John Doe\",\n  \"buyerType\": \"BUSINESS\",\n  \"businessType\": \"RETAILER\",\n  \"companySize\": \"MEDIUM\"\n}"
+          },
+          "description": "Create new buyer account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Self-Registration"
+        },
+        {
+          "name": "Get Buyer by ID",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/1",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer details by ID",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Self, Support"
+        },
+        {
+          "name": "Update Buyer",
+          "method": "PUT",
+          "url": "{{BASE_URL}}/api/buyers/1",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"businessName\": \"Updated Business Name\",\n  \"contactPersonName\": \"Updated Contact Person\",\n  \"buyerType\": \"ENTERPRISE\",\n  \"companySize\": \"LARGE\"\n}"
+          },
+          "description": "Update buyer information",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Self"
+        },
+        {
+          "name": "Delete Buyer (Soft Delete)",
+          "method": "DELETE",
+          "url": "{{BASE_URL}}/api/buyers/1",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Soft delete buyer account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Hard Delete Buyer",
+          "method": "DELETE",
+          "url": "{{BASE_URL}}/api/buyers/1/hard",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Permanently delete buyer account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Authenticate Buyer",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/authenticate",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"buyer@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "description": "Authenticate buyer with email and password",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Update Buyer Password",
+          "method": "PUT",
+          "url": "{{BASE_URL}}/api/buyers/1/password",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"currentPassword\": \"oldpassword123\",\n  \"newPassword\": \"newpassword123\"\n}"
+          },
+          "description": "Update buyer password",
+          "auth": "Bearer Token",
+          "roleAccess": "Self"
+        },
+        {
+          "name": "Generate Password Reset Token",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/password-reset/token",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"buyer@example.com\"\n}"
+          },
+          "description": "Generate password reset token for buyer",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Reset Buyer Password",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/password-reset",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"buyer@example.com\",\n  \"resetToken\": \"reset_token_string\",\n  \"newPassword\": \"newpassword123\"\n}"
+          },
+          "description": "Reset buyer password with token",
+          "auth": "None",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Send Email Verification",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/1/verify/email/send",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Send email verification for buyer",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Verify Email",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/1/verify/email",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"token\": \"verification_token_string\"\n}"
+          },
+          "description": "Verify buyer email with token",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Send Phone Verification",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/1/verify/phone/send",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Send phone verification OTP for buyer",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Verify Phone",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/1/verify/phone",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"otp\": \"123456\"\n}"
+          },
+          "description": "Verify buyer phone with OTP",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Initiate KYC Verification",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/1/verify/kyc",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"documentType\": \"PAN_CARD\",\n  \"documentNumber\": \"ABCDE1234F\",\n  \"documentUrl\": \"https://example.com/pan_card.jpg\"\n}"
+          },
+          "description": "Submit KYC verification documents",
+          "auth": "Bearer Token",
+          "roleAccess": "Self"
+        },
+        {
+          "name": "Update KYC Status",
+          "method": "PUT",
+          "url": "{{BASE_URL}}/api/buyers/1/verify/kyc/status",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"status\": \"APPROVED\",\n  \"reason\": \"Documents verified successfully\"\n}"
+          },
+          "description": "Update KYC verification status",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Buyer Verification Details",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/1/verification",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer verification details",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Upload Verification Document",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/1/documents",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"documentType\": \"AADHAAR_CARD\",\n  \"documentNumber\": \"123456789012\",\n  \"documentUrl\": \"https://example.com/aadhaar_card.jpg\"\n}"
+          },
+          "description": "Upload verification document for buyer",
+          "auth": "Bearer Token",
+          "roleAccess": "Self"
+        },
+        {
+          "name": "Activate Buyer",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/1/activate",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"reason\": \"Buyer verification completed\"\n}"
+          },
+          "description": "Activate buyer account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Deactivate Buyer",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/1/deactivate",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"reason\": \"Policy violation\"\n}"
+          },
+          "description": "Deactivate buyer account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Suspend Buyer",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/1/suspend",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"reason\": \"Suspicious activity\",\n  \"suspensionEndDate\": \"2025-01-31T23:59:59\"\n}"
+          },
+          "description": "Suspend buyer account temporarily",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get All Buyers",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers?page=0&size=20&sortBy=createdAt&sortDirection=desc",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get paginated list of all buyers",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Support"
+        },
+        {
+          "name": "Search Buyers",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/search?searchTerm=john&page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Search buyers by name, email, or business name",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Support"
+        },
+        {
+          "name": "Filter Buyers",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/filter?buyerType=BUSINESS&status=ACTIVE&isVerified=true&page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Filter buyers by various criteria",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Support"
+        },
+        {
+          "name": "Get Buyers by Status",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/status/ACTIVE?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyers by status",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Support"
+        },
+        {
+          "name": "Get Buyers by Type",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/type/BUSINESS?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyers by buyer type",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Support"
+        },
+        {
+          "name": "Get Buyers by Company",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/company/1?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyers associated with a company",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Support"
+        },
+        {
+          "name": "Get Verified Buyers",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/verified",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get all verified buyers",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Support"
+        },
+        {
+          "name": "Get Premium Buyers",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/premium?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get premium buyers",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Support"
+        },
+        {
+          "name": "Get Buyer Dashboard Stats",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/analytics/dashboard",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer dashboard statistics",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Buyer Count by Status",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/analytics/count/status",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer count grouped by status",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Buyer Count by Type",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/analytics/count/type",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer count grouped by type",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Buyer Count by Verification Status",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/analytics/count/verification",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer count grouped by verification status",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Buyer Count by State",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/analytics/count/state",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer count grouped by state",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Buyer Registration Stats",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/analytics/registration?startDate=2025-01-01T00:00:00&endDate=2025-01-31T23:59:59",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer registration statistics for date range",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Premium Buyer Stats",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/analytics/premium",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get premium buyer statistics",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Buyer Engagement Metrics",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/analytics/engagement",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer engagement metrics",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get High Value Buyers",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/insights/high-value?minOrderValue=50000",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get high value buyers based on order value",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Frequent Buyers",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/insights/frequent?minOrders=10&page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get frequent buyers based on order count",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Inactive Buyers for Re-engagement",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/insights/inactive?daysSinceLastLogin=30",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get inactive buyers for re-engagement campaigns",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Buyers Eligible for Premium Offers",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/insights/premium-eligible?minOrderValue=25000",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyers eligible for premium offers",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Get Buyers with Pending KYC",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/insights/pending-kyc?daysSinceRegistration=7",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyers with pending KYC verification",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO, Support"
+        },
+        {
+          "name": "Check Email Availability",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/check/email?email=buyer@example.com",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Check if email is available for registration",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Check Phone Availability",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/check/phone?phone=9876543210",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Check if phone number is available for registration",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Get Buyer Summary",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/1/summary",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get buyer summary information",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin, Support"
+        },
+        {
+          "name": "Check Feature Eligibility",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/buyers/1/features/premium_support/eligible",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Check if buyer is eligible for specific feature",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin, Support"
+        },
+        {
+          "name": "Bulk Update Buyer Status",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/bulk/status",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"buyerIds\": [1, 2, 3, 4],\n  \"status\": \"ACTIVE\",\n  \"reason\": \"Bulk activation after verification\"\n}"
+          },
+          "description": "Bulk update buyer status",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Bulk Send Notification",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/bulk/notification",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"buyerIds\": [1, 2, 3, 4],\n  \"subject\": \"Important Update\",\n  \"message\": \"Please update your profile information.\",\n  \"type\": \"EMAIL\"\n}"
+          },
+          "description": "Send bulk notification to buyers",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Support"
+        },
+        {
+          "name": "Export Buyers",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/buyers/export",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"buyerIds\": [1, 2, 3, 4],\n  \"format\": \"CSV\"\n}"
+          },
+          "description": "Export buyer data in specified format",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        }
+      ]
+    },
+    {
+      "name": "Vendor Management",
+      "description": "Vendor management endpoints",
+      "requests": [
+        {
+          "name": "Create Vendor",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/v1/vendors",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"vendorName\": \"ABC Electronics\",\n  \"businessName\": \"ABC Electronics Pvt Ltd\",\n  \"email\": \"vendor@abcelectronics.com\",\n  \"phone\": \"+919876543210\",\n  \"businessType\": \"MANUFACTURER\",\n  \"businessCategory\": \"ELECTRONICS\",\n  \"establishedYear\": 2015,\n  \"description\": \"Leading electronics manufacturer\"\n}"
+          },
+          "description": "Create new vendor account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Self-Registration"
+        },
+        {
+          "name": "Get Vendor by ID",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/1",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendor details by ID",
+          "auth": "Bearer Token",
+          "roleAccess": "Public (basic info), Admin/Self (detailed)"
+        },
+        {
+          "name": "Update Vendor",
+          "method": "PUT",
+          "url": "{{BASE_URL}}/api/v1/vendors/1",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"vendorName\": \"Updated Electronics\",\n  \"businessName\": \"Updated Electronics Pvt Ltd\",\n  \"description\": \"Updated leading electronics manufacturer\",\n  \"establishedYear\": 2010\n}"
+          },
+          "description": "Update vendor information",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, Self"
+        },
+        {
+          "name": "Delete Vendor",
+          "method": "DELETE",
+          "url": "{{BASE_URL}}/api/v1/vendors/1",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Delete vendor account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get All Vendors",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors?page=0&size=20&sort=id&direction=asc",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get paginated list of all vendors",
+          "auth": "Bearer Token",
+          "roleAccess": "Public (basic), Admin (detailed)"
+        },
+        {
+          "name": "Search Vendors",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/search?searchTerm=electronics&page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Search vendors by name or business name",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Filter Vendors",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/filter?businessType=MANUFACTURER&isActive=true&isVerified=true&page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Filter vendors by various criteria",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Verify Vendor",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/v1/vendors/verify",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"vendorId\": 1,\n  \"documentType\": \"BUSINESS_LICENSE\",\n  \"documentUrls\": [\"https://example.com/license.pdf\"]\n}"
+          },
+          "description": "Submit vendor verification documents",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Submit KYC",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/kyc",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "[\"https://example.com/pan_card.jpg\", \"https://example.com/gst_certificate.pdf\"]"
+          },
+          "description": "Submit KYC documents for vendor",
+          "auth": "Bearer Token",
+          "roleAccess": "Self"
+        },
+        {
+          "name": "Get Pending KYC Vendors",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/kyc/pending?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors with pending KYC verification",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Pending Approval Vendors",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/approval/pending?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors pending approval",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Vendors by Status",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/status/VERIFIED?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors by verification status",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Update Vendor Status",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/status?status=VERIFIED",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Update vendor verification status",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Activate Vendor",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/activate",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Activate vendor account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Deactivate Vendor",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/deactivate",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Deactivate vendor account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Suspend Vendor",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/suspend?reason=Policy violation",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Suspend vendor account",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Vendors by Type",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/type/MANUFACTURER?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors by business type",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Upgrade Vendor Type",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/upgrade?businessType=PREMIUM_MANUFACTURER",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Upgrade vendor business type",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Set Featured Vendor",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/featured?featured=true",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Set vendor as featured",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Set Priority Listing",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/priority?priority=true",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Set vendor priority listing",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Vendors by Category",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/category/ELECTRONICS?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors by business category",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Get Vendors by Service Area",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/service-area/Mumbai?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors by service area",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Get Vendors by Feature",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/feature/deliveryAvailable?value=true",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors by specific feature",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Get Top Performing Vendors",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/top-performing?page=0&size=10",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get top performing vendors",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Get Vendors by Rating",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/rating/4.0?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors with minimum rating",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Get Vendors by Orders",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/orders/100?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors with minimum order count",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Vendors by Revenue",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/revenue/100000?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendors with minimum revenue",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Featured Vendors",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/featured?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get featured vendors",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Get Certified Vendors",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/certified?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get certified vendors",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Update Vendor Profile",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/profile?displayName=Updated Display Name&description=Updated description",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Update vendor profile information",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Update Profile Images",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/images?profileImageUrl=https://example.com/profile.jpg&coverImageUrl=https://example.com/cover.jpg",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Update vendor profile images",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Update Contact Person",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/contact-person?name=John Doe&designation=Manager&phone=9876543210&email=john@example.com",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Update vendor contact person details",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Update Business Info",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/business-info?establishedYear=2010&businessType=PREMIUM_MANUFACTURER",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"categories\": [\"ELECTRONICS\", \"GADGETS\"],\n  \"specializations\": [\"Mobile Phones\", \"Laptops\"]\n}"
+          },
+          "description": "Update vendor business information",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Update Service Areas",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/service-areas",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "[\"Mumbai\", \"Delhi\", \"Bangalore\"]"
+          },
+          "description": "Update vendor service areas",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Update Payment Methods",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/payment-methods",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "[\"CASH\", \"BANK_TRANSFER\", \"CREDIT_CARD\", \"UPI\"]"
+          },
+          "description": "Update vendor payment methods",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Update Certifications",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/certifications?isoCertified=true&qualityAssured=true",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "[\"ISO 9001:2015\", \"CE Certification\", \"FCC Certification\"]"
+          },
+          "description": "Update vendor certifications",
+          "auth": "Bearer Token",
+          "roleAccess": "Self, Admin"
+        },
+        {
+          "name": "Check Email Uniqueness",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/validate/email/vendor@example.com",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Check if email is unique for vendor registration",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Check Phone Uniqueness",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/validate/phone/9876543210",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Check if phone number is unique for vendor registration",
+          "auth": "Bearer Token",
+          "roleAccess": "Public"
+        },
+        {
+          "name": "Check Company Linkage",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/validate/company/1",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Check if company is already linked to a vendor",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Vendor by Email",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/lookup/email/vendor@example.com",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendor by email address",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Vendor by Phone",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/lookup/phone/9876543210",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendor by phone number",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Get Vendor by Company",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/lookup/company/1",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendor by company ID",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin"
+        },
+        {
+          "name": "Authenticate Vendor",
+          "method": "POST",
+          "url": "{{BASE_URL}}/api/v1/vendors/authenticate?email=vendor@example.com&password=password123",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Authenticate vendor with email and password",
+          "auth": "Bearer Token",
+          "roleAccess": "Self"
+        },
+        {
+          "name": "Update Vendor Password",
+          "method": "PATCH",
+          "url": "{{BASE_URL}}/api/v1/vendors/1/password?currentPassword=oldpassword&newPassword=newpassword",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Update vendor password",
+          "auth": "Bearer Token",
+          "roleAccess": "Self"
+        },
+        {
+          "name": "Get Vendor Statistics",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/statistics",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get vendor platform statistics",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        },
+        {
+          "name": "Get Total Vendors Count",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/statistics/count",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get total vendors count",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        },
+        {
+          "name": "Get Active Vendors Count",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/statistics/active",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get active vendors count",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        },
+        {
+          "name": "Get Verified Vendors Count",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/statistics/verified",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get verified vendors count",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        },
+        {
+          "name": "Get KYC Approved Vendors Count",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/statistics/kyc-approved",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get KYC approved vendors count",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        },
+        {
+          "name": "Get Featured Vendors Count",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/statistics/featured",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get featured vendors count",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        },
+        {
+          "name": "Get Average Vendor Rating",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/statistics/average-rating",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get average vendor rating",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        },
+        {
+          "name": "Get Total Platform Revenue",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/statistics/total-revenue",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get total platform revenue",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        },
+        {
+          "name": "Get Total Orders",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/statistics/total-orders",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get total orders count",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        },
+        {
+          "name": "Get Recent Vendors",
+          "method": "GET",
+          "url": "{{BASE_URL}}/api/v1/vendors/recent?page=0&size=20",
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{AUTH_TOKEN}}"
+            }
+          ],
+          "description": "Get recently registered vendors",
+          "auth": "Bearer Token",
+          "roleAccess": "Admin, CTO"
+        }
+      ]
+    }
+  ]
+}

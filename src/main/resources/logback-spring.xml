@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    
+    <!-- Console appender with minimal output -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- Specific loggers to reduce noise -->
+    <logger name="org.springframework" level="ERROR"/>
+    <logger name="org.hibernate" level="ERROR"/>
+    <logger name="org.hibernate.SQL" level="ERROR"/>
+    <logger name="org.hibernate.tool.schema" level="ERROR"/>
+    <logger name="org.hibernate.engine" level="ERROR"/>
+    <logger name="com.zaxxer.hikari" level="ERROR"/>
+    <logger name="org.apache.catalina" level="ERROR"/>
+    <logger name="org.springframework.boot" level="ERROR"/>
+    <logger name="org.springframework.data" level="ERROR"/>
+    <logger name="org.springframework.context" level="ERROR"/>
+    <logger name="org.springframework.beans" level="ERROR"/>
+    <logger name="org.springframework.web" level="ERROR"/>
+    <logger name="org.springframework.security" level="ERROR"/>
+    <logger name="org.springframework.orm" level="ERROR"/>
+    <logger name="org.springframework.transaction" level="ERROR"/>
+    <logger name="org.springframework.boot.autoconfigure" level="ERROR"/>
+    
+    <!-- Your application logger -->
+    <logger name="com.itech.itech_backend" level="INFO"/>
+    
+    <!-- Root logger -->
+    <root level="ERROR">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+    
+</configuration>

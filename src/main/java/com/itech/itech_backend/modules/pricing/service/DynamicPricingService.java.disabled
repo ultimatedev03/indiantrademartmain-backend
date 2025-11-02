@@ -1,0 +1,198 @@
+package com.itech.itech_backend.modules.pricing.service;
+
+import com.itech.itech_backend.modules.ai.service.AIModelService;
+import com.itech.itech_backend.modules.product.model.Product;
+import com.itech.itech_backend.modules.product.repository.ProductRepository;
+import com.itech.itech_backend.modules.vendor.model.Vendor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DynamicPricingService {
+
+    private final ProductRepository productRepository;
+    private final AIModelService aiModelService;
+
+    /**
+     * Automatically adjust prices based on market conditions
+     */
+    @Scheduled(cron = "0 0 */4 * * *") // Every 4 hours
+    @Transactional
+    public void updatePrices() {
+        log.info("Starting automated price adjustment");
+        List<Product> products = productRepository.findAll();
+
+        for (Product product : products) {
+            try {
+                Map<String, Double> pricingRecommendation = aiModelService.predictOptimalPricing(
+                    product,
+                    getMarketData(product)
+                );
+
+                if (shouldUpdatePrice(product, pricingRecommendation)) {
+                    updateProductPrice(product, pricingRecommendation);
+                }
+            } catch (Exception e) {
+                log.error("Error updating price for product {}: {}", product.getId(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Get real-time price recommendation for a product
+     */
+    public Map<String, Object> getPriceRecommendation(Product product) {
+        Map<String, Object> marketData = getMarketData(product);
+        Map<String, Double> pricingRecommendation = aiModelService.predictOptimalPricing(
+            product,
+            marketData
+        );
+
+        return Map.of(
+            "current_price", product.getPrice(),
+            "recommended_price", pricingRecommendation.get("optimal_price"),
+            "min_price", pricingRecommendation.get("min_price"),
+            "max_price", pricingRecommendation.get("max_price"),
+            "confidence_score", pricingRecommendation.get("confidence"),
+            "market_analysis", getMarketAnalysis(product, marketData)
+        );
+    }
+
+    /**
+     * Apply bulk pricing rules
+     */
+    public Map<String, Double> calculateBulkPricing(Product product, int quantity) {
+        Map<String, Double> bulkPrices = new HashMap<>();
+
+        // Calculate different tier prices
+        if (quantity >= 1000) {
+            bulkPrices.put("unit_price", product.getPrice() * 0.7); // 30% discount
+        } else if (quantity >= 500) {
+            bulkPrices.put("unit_price", product.getPrice() * 0.8); // 20% discount
+        } else if (quantity >= 100) {
+            bulkPrices.put("unit_price", product.getPrice() * 0.9); // 10% discount
+        } else {
+            bulkPrices.put("unit_price", product.getPrice());
+        }
+
+        bulkPrices.put("total_price", bulkPrices.get("unit_price") * quantity);
+        return bulkPrices;
+    }
+
+    /**
+     * Calculate promotional pricing
+     */
+    public double calculatePromotionalPrice(Product product, String promoType) {
+        double basePrice = product.getPrice();
+        return switch (promoType) {
+            case "FLASH_SALE" -> basePrice * 0.75; // 25% off
+            case "CLEARANCE" -> basePrice * 0.5;  // 50% off
+            case "SEASONAL" -> basePrice * 0.85;  // 15% off
+            case "NEW_CUSTOMER" -> basePrice * 0.9; // 10% off
+            default -> basePrice;
+        };
+    }
+
+    private Map<String, Object> getMarketData(Product product) {
+        return Map.of(
+            "category_demand", getCategoryDemand(product.getCategory()),
+            "competitor_prices", getCompetitorPrices(product),
+            "seasonal_factors", getSeasonalFactors(),
+            "stock_level", product.getStockQuantity(),
+            "recent_sales", getRecentSales(product),
+            "market_trends", getMarketTrends(product.getCategory())
+        );
+    }
+
+    private boolean shouldUpdatePrice(Product product, Map<String, Double> recommendation) {
+        double currentPrice = product.getPrice();
+        double recommendedPrice = recommendation.get("optimal_price");
+        double confidenceScore = recommendation.get("confidence");
+
+        // Only update if the difference is significant and confidence is high
+        return Math.abs(currentPrice - recommendedPrice) / currentPrice > 0.05 
+            && confidenceScore > 0.8;
+    }
+
+    private void updateProductPrice(Product product, Map<String, Double> recommendation) {
+        double oldPrice = product.getPrice();
+        double newPrice = recommendation.get("optimal_price");
+        
+        product.setPrice(newPrice);
+        product.setPriceLastUpdated(LocalDateTime.now());
+        productRepository.save(product);
+        
+        log.info("Updated price for product {}: {} -> {}", 
+            product.getId(), oldPrice, newPrice);
+    }
+
+    private Map<String, Object> getMarketAnalysis(Product product, Map<String, Object> marketData) {
+        return Map.of(
+            "demand_trend", analyzeDemandTrend(product, marketData),
+            "competitive_position", analyzeCompetitivePosition(product, marketData),
+            "price_elasticity", calculatePriceElasticity(product),
+            "market_share", calculateMarketShare(product),
+            "profitability_analysis", analyzeProfitability(product)
+        );
+    }
+
+    private double getCategoryDemand(String category) {
+        // Implementation to get category demand metrics
+        return 0.0;
+    }
+
+    private Map<String, Object> getCompetitorPrices(Product product) {
+        // Implementation to get competitor pricing data
+        return Map.of();
+    }
+
+    private Map<String, Object> getSeasonalFactors() {
+        // Implementation to get seasonal impact factors
+        return Map.of();
+    }
+
+    private Map<String, Object> getRecentSales(Product product) {
+        // Implementation to get recent sales data
+        return Map.of();
+    }
+
+    private Map<String, Object> getMarketTrends(String category) {
+        // Implementation to get market trend data
+        return Map.of();
+    }
+
+    private Map<String, Object> analyzeDemandTrend(Product product, Map<String, Object> marketData) {
+        // Implementation to analyze demand trends
+        return Map.of();
+    }
+
+    private Map<String, Object> analyzeCompetitivePosition(Product product, Map<String, Object> marketData) {
+        // Implementation to analyze competitive position
+        return Map.of();
+    }
+
+    private double calculatePriceElasticity(Product product) {
+        // Implementation to calculate price elasticity
+        return 0.0;
+    }
+
+    private double calculateMarketShare(Product product) {
+        // Implementation to calculate market share
+        return 0.0;
+    }
+
+    private Map<String, Object> analyzeProfitability(Product product) {
+        // Implementation to analyze profitability
+        return Map.of();
+    }
+}

@@ -1,0 +1,63 @@
+spring:
+  # Test Database Configuration
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+      
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+    
+  h2:
+    console:
+      enabled: true
+      
+  # Test Security Configuration
+  security:
+    jwt:
+      secret-key: test-secret-key-for-automated-testing-suite-2024
+      expiration: 86400000 # 24 hours for testing
+      
+  # Email Configuration (Mock)
+  mail:
+    host: localhost
+    port: 25
+    username: test
+    password: test
+    
+  # Redis Configuration (Embedded for testing)
+  cache:
+    type: none
+    
+  # File Upload Configuration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# Logging Configuration - simplified for testing
+logging:
+  level:
+    com.itech: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+    org.springframework.boot.autoconfigure: ERROR
+    
+# Test-specific configurations
+testing:
+  database:
+    init-script: classpath:test-data.sql
+  mock-services:
+    enabled: true
+  integration:
+    base-url: http://localhost:8080
+    timeout: 30000

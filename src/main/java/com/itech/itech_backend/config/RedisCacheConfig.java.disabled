@@ -1,0 +1,73 @@
+package com.itech.itech_backend.config;
+
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+
+@Configuration
+@EnableCaching
+public class RedisCacheConfig {
+
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        
+        // Use Jackson serializer for values
+        GenericJackson2JsonRedisSerializer jackson2JsonRedisSerializer = new GenericJackson2JsonRedisSerializer();
+        
+        // Use String serializer for keys
+        StringRedisSerializer stringRedisSerializer = new StringRedisSerializer();
+        
+        template.setKeySerializer(stringRedisSerializer);
+        template.setHashKeySerializer(stringRedisSerializer);
+        template.setHashValueSerializer(jackson2JsonRedisSerializer);
+        template.setValueSerializer(jackson2JsonRedisSerializer);
+        
+        template.afterPropertiesSet();
+        
+        return template;
+    }
+
+    @Bean
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        // Default configuration
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+            .entryTtl(Duration.ofMinutes(30))
+            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()))
+            .disableCachingNullValues();
+
+        // Configure different TTLs for different cache names
+        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+        
+        // Short-lived caches
+        cacheConfigurations.put("products", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigurations.put("categories", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        
+        // Medium-lived caches
+        cacheConfigurations.put("userProfiles", defaultConfig.entryTtl(Duration.ofHours(1)));
+        cacheConfigurations.put("vendorDetails", defaultConfig.entryTtl(Duration.ofHours(2)));
+        
+        // Long-lived caches
+        cacheConfigurations.put("staticData", defaultConfig.entryTtl(Duration.ofDays(1)));
+        cacheConfigurations.put("configurations", defaultConfig.entryTtl(Duration.ofDays(1)));
+
+        return RedisCacheManager.builder(connectionFactory)
+            .cacheDefaults(defaultConfig)
+            .withInitialCacheConfigurations(cacheConfigurations)
+            .build();
+    }
+}

@@ -1,0 +1,407 @@
+package com.itech.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.itech.repository.*;
+import com.itech.model.*;
+import java.util.*;
+import java.time.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+@Service
+public class ReportingService {
+    
+    @Autowired
+    private OrderRepository orderRepository;
+    
+    @Autowired
+    private ProductRepository productRepository;
+    
+    @Autowired
+    private VendorRepository vendorRepository;
+    
+    @Autowired
+    private BuyerRepository buyerRepository;
+
+    public Map<String, Object> generateSalesReport(LocalDateTime startDate, LocalDateTime endDate) {
+        Map<String, Object> report = new HashMap<>();
+        
+        List<Order> orders = orderRepository.findByCreatedAtBetween(startDate, endDate);
+        
+        // Overall statistics
+        BigDecimal totalRevenue = calculateTotalRevenue(orders);
+        int totalOrders = orders.size();
+        double averageOrderValue = totalOrders > 0 ? 
+            totalRevenue.doubleValue() / totalOrders : 0;
+        
+        report.put("totalRevenue", totalRevenue);
+        report.put("totalOrders", totalOrders);
+        report.put("averageOrderValue", averageOrderValue);
+        
+        // Sales by category
+        Map<String, BigDecimal> salesByCategory = calculateSalesByCategory(orders);
+        report.put("salesByCategory", salesByCategory);
+        
+        // Sales trends (daily/weekly/monthly)
+        report.put("dailySalesTrend", calculateSalesTrend(orders, "daily"));
+        report.put("weeklySalesTrend", calculateSalesTrend(orders, "weekly"));
+        report.put("monthlySalesTrend", calculateSalesTrend(orders, "monthly"));
+        
+        // Payment methods distribution
+        report.put("paymentMethodsDistribution", calculatePaymentMethodsDistribution(orders));
+        
+        // Order status distribution
+        report.put("orderStatusDistribution", calculateOrderStatusDistribution(orders));
+        
+        return report;
+    }
+    
+    private BigDecimal calculateTotalRevenue(List<Order> orders) {
+        return orders.stream()
+            .map(Order::getFinalAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+    
+    private Map<String, BigDecimal> calculateSalesByCategory(List<Order> orders) {
+        Map<String, BigDecimal> salesByCategory = new HashMap<>();
+        
+        orders.forEach(order -> {
+            order.getOrderItems().forEach(item -> {
+                String category = item.getProduct().getCategory().getName();
+                BigDecimal amount = item.getPrice().multiply(
+                    BigDecimal.valueOf(item.getQuantity())
+                );
+                salesByCategory.merge(category, amount, BigDecimal::add);
+            });
+        });
+        
+        return salesByCategory;
+    }
+    
+    private Map<String, List<Map<String, Object>>> calculateSalesTrend(
+            List<Order> orders, String interval) {
+        Map<String, List<Map<String, Object>>> trends = new HashMap<>();
+        Map<LocalDate, BigDecimal> dailyTotals = new TreeMap<>();
+        
+        orders.forEach(order -> {
+            LocalDate date = order.getCreatedAt().toLocalDate();
+            dailyTotals.merge(date, order.getFinalAmount(), BigDecimal::add);
+        });
+        
+        List<Map<String, Object>> trendData = new ArrayList<>();
+        dailyTotals.forEach((date, total) -> {
+            Map<String, Object> point = new HashMap<>();
+            point.put("date", date);
+            point.put("amount", total);
+            trendData.add(point);
+        });
+        
+        trends.put("trend", trendData);
+        return trends;
+    }
+    
+    private Map<String, Integer> calculatePaymentMethodsDistribution(List<Order> orders) {
+        Map<String, Integer> distribution = new HashMap<>();
+        
+        orders.forEach(order -> {
+            String paymentMethod = order.getPaymentMethod();
+            distribution.merge(paymentMethod, 1, Integer::sum);
+        });
+        
+        return distribution;
+    }
+    
+    private Map<String, Integer> calculateOrderStatusDistribution(List<Order> orders) {
+        Map<String, Integer> distribution = new HashMap<>();
+        
+        orders.forEach(order -> {
+            String status = order.getStatus();
+            distribution.merge(status, 1, Integer::sum);
+        });
+        
+        return distribution;
+    }
+
+    public Map<String, Object> generateVendorPerformanceReport(Long vendorId, 
+            LocalDateTime startDate, LocalDateTime endDate) {
+        Map<String, Object> report = new HashMap<>();
+        
+        Vendor vendor = vendorRepository.findById(vendorId)
+            .orElseThrow(() -> new RuntimeException("Vendor not found"));
+            
+        List<Order> vendorOrders = orderRepository.findByVendorIdAndCreatedAtBetween(
+            vendorId, startDate, endDate
+        );
+        
+        // Overall performance metrics
+        report.put("totalRevenue", calculateTotalRevenue(vendorOrders));
+        report.put("totalOrders", vendorOrders.size());
+        report.put("averageOrderValue", calculateAverageOrderValue(vendorOrders));
+        
+        // Product performance
+        report.put("topProducts", getTopProducts(vendorId, startDate, endDate));
+        
+        // Customer metrics
+        report.put("customerRetentionRate", calculateCustomerRetentionRate(vendorId, startDate, endDate));
+        report.put("newCustomers", countNewCustomers(vendorId, startDate, endDate));
+        
+        // Order fulfillment metrics
+        report.put("fulfillmentMetrics", calculateFulfillmentMetrics(vendorOrders));
+        
+        // Rating and reviews
+        report.put("ratingDistribution", calculateRatingDistribution(vendorId));
+        report.put("averageRating", calculateAverageRating(vendorId));
+        
+        return report;
+    }
+    
+    private List<Map<String, Object>> getTopProducts(Long vendorId, 
+            LocalDateTime startDate, LocalDateTime endDate) {
+        List<Object[]> topProducts = orderRepository.findTopProductsByVendor(
+            vendorId, startDate, endDate
+        );
+        
+        List<Map<String, Object>> result = new ArrayList<>();
+        topProducts.forEach(product -> {
+            Map<String, Object> productMap = new HashMap<>();
+            productMap.put("productId", product[0]);
+            productMap.put("productName", product[1]);
+            productMap.put("totalSales", product[2]);
+            productMap.put("revenue", product[3]);
+            result.add(productMap);
+        });
+        
+        return result;
+    }
+    
+    private double calculateCustomerRetentionRate(Long vendorId, 
+            LocalDateTime startDate, LocalDateTime endDate) {
+        // Get customers who ordered before the period
+        Set<Long> previousCustomers = new HashSet<>(
+            orderRepository.findCustomersByVendorAndDateRange(
+                vendorId, null, startDate
+            )
+        );
+        
+        // Get customers who ordered during the period
+        Set<Long> currentCustomers = new HashSet<>(
+            orderRepository.findCustomersByVendorAndDateRange(
+                vendorId, startDate, endDate
+            )
+        );
+        
+        if (previousCustomers.isEmpty()) return 0.0;
+        
+        // Calculate retention rate
+        previousCustomers.retainAll(currentCustomers);
+        return (double) previousCustomers.size() / currentCustomers.size() * 100;
+    }
+    
+    private int countNewCustomers(Long vendorId, 
+            LocalDateTime startDate, LocalDateTime endDate) {
+        Set<Long> previousCustomers = new HashSet<>(
+            orderRepository.findCustomersByVendorAndDateRange(
+                vendorId, null, startDate
+            )
+        );
+        
+        Set<Long> currentCustomers = new HashSet<>(
+            orderRepository.findCustomersByVendorAndDateRange(
+                vendorId, startDate, endDate
+            )
+        );
+        
+        currentCustomers.removeAll(previousCustomers);
+        return currentCustomers.size();
+    }
+    
+    private Map<String, Object> calculateFulfillmentMetrics(List<Order> orders) {
+        Map<String, Object> metrics = new HashMap<>();
+        
+        long totalOrders = orders.size();
+        if (totalOrders == 0) {
+            metrics.put("onTimeDeliveryRate", 0.0);
+            metrics.put("cancellationRate", 0.0);
+            metrics.put("averageProcessingTime", 0.0);
+            return metrics;
+        }
+        
+        long onTimeDeliveries = orders.stream()
+            .filter(this::isDeliveredOnTime)
+            .count();
+            
+        long cancelledOrders = orders.stream()
+            .filter(o -> "CANCELLED".equals(o.getStatus()))
+            .count();
+            
+        double averageProcessingHours = orders.stream()
+            .mapToLong(this::calculateProcessingHours)
+            .average()
+            .orElse(0.0);
+            
+        metrics.put("onTimeDeliveryRate", 
+            (double) onTimeDeliveries / totalOrders * 100);
+        metrics.put("cancellationRate", 
+            (double) cancelledOrders / totalOrders * 100);
+        metrics.put("averageProcessingTime", averageProcessingHours);
+        
+        return metrics;
+    }
+    
+    private boolean isDeliveredOnTime(Order order) {
+        if (order.getDeliveredAt() == null) return false;
+        
+        // Assuming standard delivery time is 3 days
+        LocalDateTime expectedDelivery = order.getCreatedAt().plusDays(3);
+        return !order.getDeliveredAt().isAfter(expectedDelivery);
+    }
+    
+    private long calculateProcessingHours(Order order) {
+        if (order.getDeliveredAt() == null) return 0;
+        
+        return Duration.between(
+            order.getCreatedAt(), 
+            order.getDeliveredAt()
+        ).toHours();
+    }
+    
+    private Map<Integer, Integer> calculateRatingDistribution(Long vendorId) {
+        List<Review> reviews = orderRepository.findReviewsByVendor(vendorId);
+        
+        Map<Integer, Integer> distribution = new HashMap<>();
+        for (int i = 1; i <= 5; i++) {
+            distribution.put(i, 0);
+        }
+        
+        reviews.forEach(review -> {
+            distribution.merge(review.getRating(), 1, Integer::sum);
+        });
+        
+        return distribution;
+    }
+    
+    private double calculateAverageRating(Long vendorId) {
+        List<Review> reviews = orderRepository.findReviewsByVendor(vendorId);
+        
+        if (reviews.isEmpty()) return 0.0;
+        
+        return reviews.stream()
+            .mapToInt(Review::getRating)
+            .average()
+            .orElse(0.0);
+    }
+
+    public Map<String, Object> generateMarketplaceAnalytics(
+            LocalDateTime startDate, LocalDateTime endDate) {
+        Map<String, Object> analytics = new HashMap<>();
+        
+        // Platform metrics
+        analytics.put("totalGMV", calculateTotalGMV(startDate, endDate));
+        analytics.put("orderMetrics", calculateOrderMetrics(startDate, endDate));
+        analytics.put("userMetrics", calculateUserMetrics(startDate, endDate));
+        
+        // Category performance
+        analytics.put("categoryPerformance", analyzeCategoryPerformance(startDate, endDate));
+        
+        // User engagement
+        analytics.put("userEngagement", calculateUserEngagement(startDate, endDate));
+        
+        // Vendor performance
+        analytics.put("vendorPerformance", analyzeVendorPerformance(startDate, endDate));
+        
+        return analytics;
+    }
+    
+    private BigDecimal calculateTotalGMV(LocalDateTime startDate, LocalDateTime endDate) {
+        return orderRepository.calculateTotalGMV(startDate, endDate)
+            .setScale(2, RoundingMode.HALF_UP);
+    }
+    
+    private Map<String, Object> calculateOrderMetrics(
+            LocalDateTime startDate, LocalDateTime endDate) {
+        Map<String, Object> metrics = new HashMap<>();
+        
+        List<Order> orders = orderRepository.findByCreatedAtBetween(startDate, endDate);
+        
+        metrics.put("totalOrders", orders.size());
+        metrics.put("averageOrderValue", calculateAverageOrderValue(orders));
+        metrics.put("orderGrowthRate", calculateOrderGrowthRate(startDate, endDate));
+        
+        return metrics;
+    }
+    
+    private Map<String, Object> calculateUserMetrics(
+            LocalDateTime startDate, LocalDateTime endDate) {
+        Map<String, Object> metrics = new HashMap<>();
+        
+        metrics.put("newBuyers", countNewUsers(buyerRepository, startDate, endDate));
+        metrics.put("newVendors", countNewUsers(vendorRepository, startDate, endDate));
+        metrics.put("buyerRetentionRate", calculateBuyerRetentionRate(startDate, endDate));
+        metrics.put("vendorRetentionRate", calculateVendorRetentionRate(startDate, endDate));
+        
+        return metrics;
+    }
+    
+    private <T> int countNewUsers(JpaRepository<T, Long> repository, 
+            LocalDateTime startDate, LocalDateTime endDate) {
+        return repository.countByCreatedAtBetween(startDate, endDate);
+    }
+    
+    private Map<String, Object> analyzeCategoryPerformance(
+            LocalDateTime startDate, LocalDateTime endDate) {
+        List<Object[]> categoryStats = orderRepository.findCategoryPerformance(
+            startDate, endDate
+        );
+        
+        Map<String, Object> performance = new HashMap<>();
+        categoryStats.forEach(stat -> {
+            Map<String, Object> metrics = new HashMap<>();
+            metrics.put("orderCount", stat[1]);
+            metrics.put("revenue", stat[2]);
+            metrics.put("growth", stat[3]);
+            performance.put((String) stat[0], metrics);
+        });
+        
+        return performance;
+    }
+    
+    private Map<String, Object> calculateUserEngagement(
+            LocalDateTime startDate, LocalDateTime endDate) {
+        Map<String, Object> engagement = new HashMap<>();
+        
+        engagement.put("activeUsers", countActiveUsers(startDate, endDate));
+        engagement.put("productViews", countProductViews(startDate, endDate));
+        engagement.put("searchQueries", analyzeSearchQueries(startDate, endDate));
+        engagement.put("cartMetrics", analyzeCartMetrics(startDate, endDate));
+        
+        return engagement;
+    }
+    
+    private Map<String, Object> analyzeVendorPerformance(
+            LocalDateTime startDate, LocalDateTime endDate) {
+        Map<String, Object> performance = new HashMap<>();
+        
+        List<Object[]> vendorStats = orderRepository.findVendorPerformance(
+            startDate, endDate
+        );
+        
+        List<Map<String, Object>> topVendors = new ArrayList<>();
+        vendorStats.forEach(stat -> {
+            Map<String, Object> metrics = new HashMap<>();
+            metrics.put("vendorId", stat[0]);
+            metrics.put("orderCount", stat[1]);
+            metrics.put("revenue", stat[2]);
+            metrics.put("rating", stat[3]);
+            topVendors.add(metrics);
+        });
+        
+        performance.put("topVendors", topVendors);
+        performance.put("vendorGrowthRate", calculateVendorGrowthRate(startDate, endDate));
+        performance.put("averageVendorRating", calculateAverageVendorRating());
+        
+        return performance;
+    }
+}

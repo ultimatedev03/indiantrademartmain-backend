@@ -1,0 +1,277 @@
+package com.itech.itech_backend.modules.rfq.service;
+
+import com.itech.itech_backend.modules.notification.service.NotificationService;
+import com.itech.itech_backend.modules.rfq.model.RFQ;
+import com.itech.itech_backend.modules.rfq.model.RFQBid;
+import com.itech.itech_backend.modules.rfq.repository.RFQBidRepository;
+import com.itech.itech_backend.modules.rfq.repository.RFQRepository;
+import com.itech.itech_backend.modules.vendor.service.VendorService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class RFQService {
+
+    private final RFQRepository rfqRepository;
+    private final RFQBidRepository bidRepository;
+    private final VendorService vendorService;
+    private final NotificationService notificationService;
+
+    @Transactional
+    public RFQ createRFQ(RFQ rfq) {
+        validateRFQ(rfq);
+
+        // Set initial status
+        rfq.setStatus(RFQ.RFQStatus.ACTIVE);
+        rfq.setBidCount(0);
+        rfq.setViewCount(0);
+
+        // Save RFQ
+        RFQ savedRFQ = rfqRepository.save(rfq);
+
+        // Notify relevant vendors based on categories and location
+        notifyVendors(savedRFQ);
+
+        return savedRFQ;
+    }
+
+    @Transactional
+    public RFQBid submitBid(RFQBid bid) {
+        validateBid(bid);
+
+        // Set initial status
+        bid.setStatus(RFQBid.BidStatus.SUBMITTED);
+        bid.setNegotiationRound(1);
+
+        // Update RFQ bid count
+        RFQ rfq = bid.getRfq();
+        rfq.setBidCount(rfq.getBidCount() + 1);
+        rfqRepository.save(rfq);
+
+        // Save bid
+        RFQBid savedBid = bidRepository.save(bid);
+
+        // Notify buyer
+        notifyBuyer(savedBid);
+
+        return savedBid;
+    }
+
+    @Transactional
+    public RFQBid updateBid(Long bidId, RFQBid updatedBid) {
+        RFQBid existingBid = bidRepository.findById(bidId)
+                .orElseThrow(() -> new RuntimeException("Bid not found"));
+
+        // Validate bid status
+        if (existingBid.getStatus() == RFQBid.BidStatus.ACCEPTED ||
+            existingBid.getStatus() == RFQBid.BidStatus.REJECTED ||
+            existingBid.getStatus() == RFQBid.BidStatus.WITHDRAWN) {
+            throw new RuntimeException("Cannot update bid in current status");
+        }
+
+        // Update fields
+        existingBid.setUnitPrice(updatedBid.getUnitPrice());
+        existingBid.setQuantity(updatedBid.getQuantity());
+        existingBid.setDeliveryTimeDays(updatedBid.getDeliveryTimeDays());
+        existingBid.setNotes(updatedBid.getNotes());
+        existingBid.setAttachments(updatedBid.getAttachments());
+        existingBid.setPaymentTerms(updatedBid.getPaymentTerms());
+        existingBid.setValidityPeriodDays(updatedBid.getValidityPeriodDays());
+        existingBid.setShippingTerms(updatedBid.getShippingTerms());
+        existingBid.setShippingCost(updatedBid.getShippingCost());
+        existingBid.setTaxPercentage(updatedBid.getTaxPercentage());
+        existingBid.setDiscountPercentage(updatedBid.getDiscountPercentage());
+
+        // Save updated bid
+        return bidRepository.save(existingBid);
+    }
+
+    @Transactional
+    public void shortlistBid(Long bidId) {
+        RFQBid bid = bidRepository.findById(bidId)
+                .orElseThrow(() -> new RuntimeException("Bid not found"));
+
+        bid.setStatus(RFQBid.BidStatus.SHORTLISTED);
+        bidRepository.save(bid);
+
+        // Notify vendor
+        notificationService.notifyVendor(
+                bid.getVendorId(),
+                "Bid Shortlisted",
+                "Your bid for RFQ #" + bid.getRfq().getId() + " has been shortlisted.");
+    }
+
+    @Transactional
+    public void startNegotiation(Long bidId, String buyerNotes) {
+        RFQBid bid = bidRepository.findById(bidId)
+                .orElseThrow(() -> new RuntimeException("Bid not found"));
+
+        bid.setStatus(RFQBid.BidStatus.NEGOTIATION);
+        bid.setNegotiationRound(bid.getNegotiationRound() + 1);
+        bid.setBuyerNotes(buyerNotes);
+        bidRepository.save(bid);
+
+        // Notify vendor
+        notificationService.notifyVendor(
+                bid.getVendorId(),
+                "Negotiation Started",
+                "Buyer has started negotiation for RFQ #" + bid.getRfq().getId());
+    }
+
+    @Transactional
+    public void awardBid(Long bidId) {
+        RFQBid winningBid = bidRepository.findById(bidId)
+                .orElseThrow(() -> new RuntimeException("Bid not found"));
+
+        // Update winning bid
+        winningBid.setStatus(RFQBid.BidStatus.ACCEPTED);
+        bidRepository.save(winningBid);
+
+        // Update RFQ status
+        RFQ rfq = winningBid.getRfq();
+        rfq.setStatus(RFQ.RFQStatus.AWARDED);
+        rfqRepository.save(rfq);
+
+        // Reject other bids
+        List<RFQBid> otherBids = bidRepository.findByRfqAndIdNot(rfq, bidId);
+        otherBids.forEach(bid -> {
+            bid.setStatus(RFQBid.BidStatus.REJECTED);
+            bidRepository.save(bid);
+            
+            // Notify other vendors
+            notificationService.notifyVendor(
+                    bid.getVendorId(),
+                    "Bid Not Selected",
+                    "Another vendor has been selected for RFQ #" + rfq.getId());
+        });
+
+        // Notify winning vendor
+        notificationService.notifyVendor(
+                winningBid.getVendorId(),
+                "Bid Accepted",
+                "Congratulations! Your bid for RFQ #" + rfq.getId() + " has been accepted.");
+    }
+
+    public Page<RFQ> searchRFQs(
+            List<String> categories,
+            String location,
+            Double minRating,
+            RFQ.RFQStatus status,
+            Pageable pageable) {
+        return rfqRepository.search(categories, location, minRating, status, pageable);
+    }
+
+    public List<RFQBid> getBidsForRFQ(Long rfqId) {
+        return bidRepository.findByRfqId(rfqId);
+    }
+
+    public List<RFQ> getActiveRFQsForVendor(String vendorId) {
+        return rfqRepository.findActiveRFQsForVendor(
+                vendorId,
+                vendorService.getVendorCategories(vendorId),
+                vendorService.getVendorLocation(vendorId),
+                vendorService.getVendorRating(vendorId));
+    }
+
+    @Scheduled(cron = "0 0 * * * *") // Every hour
+    public void checkExpiredRFQs() {
+        List<RFQ> expiredRFQs = rfqRepository.findExpiredRFQs(LocalDateTime.now());
+        expiredRFQs.forEach(rfq -> {
+            rfq.setStatus(RFQ.RFQStatus.EXPIRED);
+            rfqRepository.save(rfq);
+
+            // Notify buyer
+            notificationService.notifyBuyer(
+                    rfq.getBuyerId(),
+                    "RFQ Expired",
+                    "Your RFQ #" + rfq.getId() + " has expired.");
+        });
+    }
+
+    private void validateRFQ(RFQ rfq) {
+        if (rfq.getTitle() == null || rfq.getTitle().isBlank()) {
+            throw new IllegalArgumentException("RFQ title is required");
+        }
+        if (rfq.getQuantity() == null || rfq.getQuantity() <= 0) {
+            throw new IllegalArgumentException("Invalid quantity");
+        }
+        if (rfq.getDeliveryDate() != null && rfq.getDeliveryDate().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Delivery date cannot be in the past");
+        }
+        if (rfq.getValidUntil() != null && rfq.getValidUntil().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Validity date cannot be in the past");
+        }
+        if (rfq.getCategories() == null || rfq.getCategories().isEmpty()) {
+            throw new IllegalArgumentException("At least one category is required");
+        }
+    }
+
+    private void validateBid(RFQBid bid) {
+        if (bid.getRfq() == null) {
+            throw new IllegalArgumentException("RFQ is required");
+        }
+        if (bid.getUnitPrice() == null || bid.getUnitPrice().signum() <= 0) {
+            throw new IllegalArgumentException("Invalid unit price");
+        }
+        if (bid.getQuantity() == null || bid.getQuantity() <= 0) {
+            throw new IllegalArgumentException("Invalid quantity");
+        }
+        if (bid.getDeliveryTimeDays() == null || bid.getDeliveryTimeDays() <= 0) {
+            throw new IllegalArgumentException("Invalid delivery time");
+        }
+        if (bid.getValidityPeriodDays() == null || bid.getValidityPeriodDays() <= 0) {
+            throw new IllegalArgumentException("Invalid validity period");
+        }
+
+        // Check if RFQ is still active
+        if (bid.getRfq().getStatus() != RFQ.RFQStatus.ACTIVE) {
+            throw new IllegalArgumentException("RFQ is not active");
+        }
+
+        // Check if vendor already submitted a bid
+        Optional<RFQBid> existingBid = bidRepository.findByRfqAndVendorId(
+                bid.getRfq(), bid.getVendorId());
+        if (existingBid.isPresent()) {
+            throw new IllegalArgumentException("Vendor already submitted a bid");
+        }
+
+        // Validate vendor eligibility
+        if (!vendorService.isVendorEligibleForRFQ(
+                bid.getVendorId(),
+                bid.getRfq().getCategories(),
+                bid.getRfq().getMinSupplierRating())) {
+            throw new IllegalArgumentException("Vendor not eligible for this RFQ");
+        }
+    }
+
+    private void notifyVendors(RFQ rfq) {
+        List<String> eligibleVendors = vendorService.findEligibleVendors(
+                rfq.getCategories(),
+                rfq.getSupplierLocationPreference(),
+                rfq.getMinSupplierRating());
+
+        eligibleVendors.forEach(vendorId ->
+            notificationService.notifyVendor(
+                    vendorId,
+                    "New RFQ Available",
+                    "A new RFQ matching your profile is available: " + rfq.getTitle()));
+    }
+
+    private void notifyBuyer(RFQBid bid) {
+        notificationService.notifyBuyer(
+                bid.getRfq().getBuyerId(),
+                "New Bid Received",
+                "A new bid has been received for your RFQ #" + bid.getRfq().getId());
+    }
+}

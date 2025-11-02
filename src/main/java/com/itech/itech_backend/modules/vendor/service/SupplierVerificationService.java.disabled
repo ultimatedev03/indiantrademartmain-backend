@@ -1,0 +1,242 @@
+package com.itech.itech_backend.modules.vendor.service;
+
+import com.itech.itech_backend.modules.document.service.DocumentService;
+import com.itech.itech_backend.modules.notification.service.NotificationService;
+import com.itech.itech_backend.modules.vendor.model.Vendor;
+import com.itech.itech_backend.modules.vendor.model.VerificationDocument;
+import com.itech.itech_backend.modules.vendor.repository.VendorRepository;
+import com.itech.itech_backend.modules.vendor.repository.VerificationDocumentRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class SupplierVerificationService {
+
+    private final VendorRepository vendorRepository;
+    private final VerificationDocumentRepository documentRepository;
+    private final DocumentService documentService;
+    private final NotificationService notificationService;
+    private final ThirdPartyVerificationService thirdPartyVerification;
+
+    @Transactional
+    public VerificationDocument uploadDocument(
+            String vendorId,
+            String documentType,
+            String documentNumber,
+            LocalDateTime expiryDate,
+            MultipartFile file) {
+
+        // Validate document type
+        validateDocumentType(documentType);
+
+        // Upload file to storage
+        String documentUrl = documentService.uploadFile(file, "verification-documents");
+
+        // Create verification document
+        VerificationDocument document = VerificationDocument.builder()
+                .vendorId(vendorId)
+                .documentType(documentType)
+                .documentNumber(documentNumber)
+                .documentUrl(documentUrl)
+                .expiryDate(expiryDate)
+                .status(VerificationDocument.Status.PENDING)
+                .uploadedAt(LocalDateTime.now())
+                .build();
+
+        document = documentRepository.save(document);
+
+        // Start async verification process
+        startVerificationProcess(document);
+
+        return document;
+    }
+
+    @Transactional
+    public void verifyDocument(Long documentId) {
+        VerificationDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        // Update document status
+        document.setStatus(VerificationDocument.Status.VERIFIED);
+        document.setVerifiedAt(LocalDateTime.now());
+        documentRepository.save(document);
+
+        // Update vendor verification status if all required documents are verified
+        updateVendorVerificationStatus(document.getVendorId());
+
+        // Notify vendor
+        notificationService.notifyVendor(
+                document.getVendorId(),
+                "Document Verified",
+                "Your " + document.getDocumentType() + " has been verified successfully.");
+    }
+
+    @Transactional
+    public void rejectDocument(Long documentId, String reason) {
+        VerificationDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        // Update document status
+        document.setStatus(VerificationDocument.Status.REJECTED);
+        document.setRejectionReason(reason);
+        document.setVerifiedAt(LocalDateTime.now());
+        documentRepository.save(document);
+
+        // Update vendor verification status
+        updateVendorVerificationStatus(document.getVendorId());
+
+        // Notify vendor
+        notificationService.notifyVendor(
+                document.getVendorId(),
+                "Document Rejected",
+                "Your " + document.getDocumentType() + " has been rejected: " + reason);
+    }
+
+    @Transactional
+    public void markDocumentExpired(Long documentId) {
+        VerificationDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+
+        // Update document status
+        document.setStatus(VerificationDocument.Status.EXPIRED);
+        documentRepository.save(document);
+
+        // Update vendor verification status
+        updateVendorVerificationStatus(document.getVendorId());
+
+        // Notify vendor
+        notificationService.notifyVendor(
+                document.getVendorId(),
+                "Document Expired",
+                "Your " + document.getDocumentType() + " has expired. Please upload a new one.");
+    }
+
+    public List<VerificationDocument> getVendorDocuments(String vendorId) {
+        return documentRepository.findByVendorId(vendorId);
+    }
+
+    public Map<String, Boolean> getVendorVerificationStatus(String vendorId) {
+        Vendor vendor = vendorRepository.findById(vendorId)
+                .orElseThrow(() -> new RuntimeException("Vendor not found"));
+
+        List<VerificationDocument> documents = documentRepository.findByVendorId(vendorId);
+
+        return Map.of(
+            "gst_verified", isDocumentVerified(documents, "GST"),
+            "pan_verified", isDocumentVerified(documents, "PAN"),
+            "msme_verified", isDocumentVerified(documents, "MSME"),
+            "bank_account_verified", isDocumentVerified(documents, "BANK_ACCOUNT"),
+            "address_verified", isDocumentVerified(documents, "ADDRESS_PROOF"),
+            "business_registration_verified", isDocumentVerified(documents, "BUSINESS_REGISTRATION"),
+            "is_fully_verified", vendor.getVerificationStatus() == Vendor.VerificationStatus.VERIFIED
+        );
+    }
+
+    private void startVerificationProcess(VerificationDocument document) {
+        try {
+            switch (document.getDocumentType()) {
+                case "GST":
+                    thirdPartyVerification.verifyGST(
+                            document.getDocumentNumber(),
+                            document.getDocumentUrl(),
+                            result -> handleVerificationResult(document.getId(), result));
+                    break;
+                case "PAN":
+                    thirdPartyVerification.verifyPAN(
+                            document.getDocumentNumber(),
+                            document.getDocumentUrl(),
+                            result -> handleVerificationResult(document.getId(), result));
+                    break;
+                case "BANK_ACCOUNT":
+                    thirdPartyVerification.verifyBankAccount(
+                            document.getDocumentNumber(),
+                            document.getDocumentUrl(),
+                            result -> handleVerificationResult(document.getId(), result));
+                    break;
+                default:
+                    // For documents that need manual verification
+                    notifyAdminForManualVerification(document);
+            }
+        } catch (Exception e) {
+            log.error("Error starting verification process for document {}", document.getId(), e);
+            document.setStatus(VerificationDocument.Status.FAILED);
+            document.setRejectionReason("Verification process failed: " + e.getMessage());
+            documentRepository.save(document);
+        }
+    }
+
+    private void handleVerificationResult(Long documentId, ThirdPartyVerificationService.VerificationResult result) {
+        if (result.isValid()) {
+            verifyDocument(documentId);
+        } else {
+            rejectDocument(documentId, result.getReason());
+        }
+    }
+
+    private void updateVendorVerificationStatus(String vendorId) {
+        Vendor vendor = vendorRepository.findById(vendorId)
+                .orElseThrow(() -> new RuntimeException("Vendor not found"));
+
+        List<VerificationDocument> documents = documentRepository.findByVendorId(vendorId);
+
+        // Check if all required documents are verified
+        boolean isFullyVerified = isDocumentVerified(documents, "GST") &&
+                isDocumentVerified(documents, "PAN") &&
+                isDocumentVerified(documents, "BUSINESS_REGISTRATION") &&
+                isDocumentVerified(documents, "BANK_ACCOUNT");
+
+        if (isFullyVerified && vendor.getVerificationStatus() != Vendor.VerificationStatus.VERIFIED) {
+            vendor.setVerificationStatus(Vendor.VerificationStatus.VERIFIED);
+            vendor.setVerifiedAt(LocalDateTime.now());
+            vendorRepository.save(vendor);
+
+            notificationService.notifyVendor(
+                    vendorId,
+                    "Verification Complete",
+                    "Congratulations! Your business is now fully verified.");
+        } else if (!isFullyVerified && vendor.getVerificationStatus() == Vendor.VerificationStatus.VERIFIED) {
+            vendor.setVerificationStatus(Vendor.VerificationStatus.PENDING);
+            vendorRepository.save(vendor);
+
+            notificationService.notifyVendor(
+                    vendorId,
+                    "Verification Status Changed",
+                    "Your verification status has been changed to pending due to document issues.");
+        }
+    }
+
+    private boolean isDocumentVerified(List<VerificationDocument> documents, String documentType) {
+        return documents.stream()
+                .filter(doc -> doc.getDocumentType().equals(documentType))
+                .anyMatch(doc -> doc.getStatus() == VerificationDocument.Status.VERIFIED &&
+                        (doc.getExpiryDate() == null || doc.getExpiryDate().isAfter(LocalDateTime.now())));
+    }
+
+    private void validateDocumentType(String documentType) {
+        List<String> validTypes = List.of(
+                "GST", "PAN", "MSME", "BANK_ACCOUNT", "ADDRESS_PROOF",
+                "BUSINESS_REGISTRATION", "ISO_CERTIFICATION", "QUALITY_CERTIFICATION",
+                "TRADE_LICENSE", "IMPORT_EXPORT_CODE");
+
+        if (!validTypes.contains(documentType)) {
+            throw new IllegalArgumentException("Invalid document type: " + documentType);
+        }
+    }
+
+    private void notifyAdminForManualVerification(VerificationDocument document) {
+        // Send notification to admin dashboard
+        notificationService.notifyAdmin(
+                "Manual Verification Required",
+                "New " + document.getDocumentType() + " document uploaded by vendor " +
+                        document.getVendorId() + " requires manual verification.");
+    }
+}

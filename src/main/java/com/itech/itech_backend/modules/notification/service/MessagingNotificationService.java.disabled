@@ -1,0 +1,32 @@
+package com.itech.itech_backend.modules.notification.service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+@Service("messagingNotificationService")
+@RequiredArgsConstructor
+@Slf4j
+public class MessagingNotificationService {
+    
+    public void sendRFQNotification(String vendorId, Long rfqId, String message) {
+        log.info("Sending RFQ notification to vendor {} for RFQ {}: {}", vendorId, rfqId, message);
+        // Implementation for sending notifications
+        // This could be email, SMS, push notification, etc.
+    }
+    
+    public void sendBidNotification(String buyerId, Long rfqId, String message) {
+        log.info("Sending bid notification to buyer {} for RFQ {}: {}", buyerId, rfqId, message);
+        // Implementation for sending bid notifications
+    }
+    
+    public void sendEmailNotification(String email, String subject, String message) {
+        log.info("Sending email notification to {}: {}", email, subject);
+        // Implementation for email notifications
+    }
+    
+    public void sendSMSNotification(String phoneNumber, String message) {
+        log.info("Sending SMS notification to {}: {}", phoneNumber, message);
+        // Implementation for SMS notifications
+    }
+}

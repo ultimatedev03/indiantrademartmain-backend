@@ -1,0 +1,303 @@
+package com.itech.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import com.itech.repository.ProductRepository;
+import com.itech.repository.OrderRepository;
+import com.itech.model.Product;
+import com.itech.model.Order;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.io.IOException;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.time.LocalDateTime;
+
+@Service
+public class BulkOperationsService {
+    
+    @Autowired
+    private ProductRepository productRepository;
+    
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Transactional
+    public Map<String, Object> bulkUploadProducts(MultipartFile file) throws IOException {
+        Map<String, Object> result = new HashMap<>();
+        List<String> errors = new ArrayList<>();
+        int successCount = 0;
+        int errorCount = 0;
+        
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            
+            // Validate headers
+            Row headerRow = sheet.getRow(0);
+            if (!validateProductHeaders(headerRow)) {
+                throw new RuntimeException("Invalid template format");
+            }
+            
+            // Process each row
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                try {
+                    Row row = sheet.getRow(i);
+                    Product product = mapRowToProduct(row);
+                    productRepository.save(product);
+                    successCount++;
+                } catch (Exception e) {
+                    errors.add("Row " + (i + 1) + ": " + e.getMessage());
+                    errorCount++;
+                }
+            }
+        }
+        
+        result.put("successCount", successCount);
+        result.put("errorCount", errorCount);
+        result.put("errors", errors);
+        
+        return result;
+    }
+    
+    private boolean validateProductHeaders(Row headerRow) {
+        List<String> requiredHeaders = List.of(
+            "name", "description", "sku", "price", "category",
+            "brand", "stock_quantity", "min_order_quantity"
+        );
+        
+        for (int i = 0; i < requiredHeaders.size(); i++) {
+            Cell cell = headerRow.getCell(i);
+            if (cell == null || !cell.getStringCellValue().toLowerCase()
+                    .equals(requiredHeaders.get(i))) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    private Product mapRowToProduct(Row row) {
+        Product product = new Product();
+        product.setName(getStringCellValue(row.getCell(0)));
+        product.setDescription(getStringCellValue(row.getCell(1)));
+        product.setSku(getStringCellValue(row.getCell(2)));
+        product.setPrice(getNumericCellValue(row.getCell(3)));
+        product.setCategoryId(Long.valueOf(getStringCellValue(row.getCell(4))));
+        product.setBrand(getStringCellValue(row.getCell(5)));
+        product.setStockQuantity((int) getNumericCellValue(row.getCell(6)));
+        product.setMinOrderQuantity((int) getNumericCellValue(row.getCell(7)));
+        return product;
+    }
+    
+    private String getStringCellValue(Cell cell) {
+        if (cell == null) return null;
+        switch (cell.getCellType()) {
+            case STRING: return cell.getStringCellValue();
+            case NUMERIC: return String.valueOf((int) cell.getNumericCellValue());
+            default: return null;
+        }
+    }
+    
+    private double getNumericCellValue(Cell cell) {
+        if (cell == null) return 0.0;
+        return cell.getNumericCellValue();
+    }
+
+    @Transactional
+    public Map<String, Object> bulkUpdateProducts(MultipartFile file) throws IOException {
+        Map<String, Object> result = new HashMap<>();
+        List<String> errors = new ArrayList<>();
+        int successCount = 0;
+        int errorCount = 0;
+        
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            
+            // Validate headers (first row must contain SKU)
+            Row headerRow = sheet.getRow(0);
+            if (!headerRow.getCell(0).getStringCellValue().toLowerCase().equals("sku")) {
+                throw new RuntimeException("First column must be SKU");
+            }
+            
+            // Create header map
+            Map<String, Integer> headerMap = new HashMap<>();
+            for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+                String header = headerRow.getCell(i).getStringCellValue().toLowerCase();
+                headerMap.put(header, i);
+            }
+            
+            // Process each row
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                try {
+                    Row row = sheet.getRow(i);
+                    String sku = getStringCellValue(row.getCell(0));
+                    Product existingProduct = productRepository.findBySku(sku)
+                        .orElseThrow(() -> new RuntimeException("Product not found with SKU: " + sku));
+                    
+                    updateProductFromRow(existingProduct, row, headerMap);
+                    productRepository.save(existingProduct);
+                    successCount++;
+                } catch (Exception e) {
+                    errors.add("Row " + (i + 1) + ": " + e.getMessage());
+                    errorCount++;
+                }
+            }
+        }
+        
+        result.put("successCount", successCount);
+        result.put("errorCount", errorCount);
+        result.put("errors", errors);
+        
+        return result;
+    }
+    
+    private void updateProductFromRow(Product product, Row row, Map<String, Integer> headerMap) {
+        headerMap.forEach((header, index) -> {
+            Cell cell = row.getCell(index);
+            if (cell != null) {
+                switch (header) {
+                    case "name":
+                        product.setName(getStringCellValue(cell));
+                        break;
+                    case "description":
+                        product.setDescription(getStringCellValue(cell));
+                        break;
+                    case "price":
+                        product.setPrice(getNumericCellValue(cell));
+                        break;
+                    case "stock_quantity":
+                        product.setStockQuantity((int) getNumericCellValue(cell));
+                        break;
+                    // Add more fields as needed
+                }
+            }
+        });
+    }
+
+    public byte[] exportProducts(List<Long> productIds) throws IOException {
+        List<Product> products = productIds == null || productIds.isEmpty() 
+            ? productRepository.findAll()
+            : productRepository.findAllById(productIds);
+            
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            
+            Sheet sheet = workbook.createSheet("Products");
+            
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            List<String> headers = List.of(
+                "SKU", "Name", "Description", "Price", "Stock Quantity",
+                "Category", "Brand", "Created At", "Updated At"
+            );
+            
+            for (int i = 0; i < headers.size(); i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers.get(i));
+            }
+            
+            // Create data rows
+            int rowNum = 1;
+            for (Product product : products) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(product.getSku());
+                row.createCell(1).setCellValue(product.getName());
+                row.createCell(2).setCellValue(product.getDescription());
+                row.createCell(3).setCellValue(product.getPrice());
+                row.createCell(4).setCellValue(product.getStockQuantity());
+                row.createCell(5).setCellValue(product.getCategoryId());
+                row.createCell(6).setCellValue(product.getBrand());
+                row.createCell(7).setCellValue(product.getCreatedAt().toString());
+                row.createCell(8).setCellValue(product.getUpdatedAt().toString());
+            }
+            
+            // Auto-size columns
+            for (int i = 0; i < headers.size(); i++) {
+                sheet.autoSizeColumn(i);
+            }
+            
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Transactional
+    public Map<String, Object> bulkProcessOrders(List<Long> orderIds, String action) {
+        Map<String, Object> result = new HashMap<>();
+        List<String> errors = new ArrayList<>();
+        int successCount = 0;
+        int errorCount = 0;
+        
+        List<Order> orders = orderRepository.findAllById(orderIds);
+        
+        for (Order order : orders) {
+            try {
+                switch (action.toLowerCase()) {
+                    case "confirm":
+                        if (order.getStatus().equals("PENDING")) {
+                            order.setStatus("CONFIRMED");
+                            order.setUpdatedAt(LocalDateTime.now());
+                            orderRepository.save(order);
+                            successCount++;
+                        } else {
+                            throw new RuntimeException("Order not in PENDING state");
+                        }
+                        break;
+                        
+                    case "ship":
+                        if (order.getStatus().equals("CONFIRMED")) {
+                            order.setStatus("SHIPPED");
+                            order.setUpdatedAt(LocalDateTime.now());
+                            orderRepository.save(order);
+                            successCount++;
+                        } else {
+                            throw new RuntimeException("Order not in CONFIRMED state");
+                        }
+                        break;
+                        
+                    case "deliver":
+                        if (order.getStatus().equals("SHIPPED")) {
+                            order.setStatus("DELIVERED");
+                            order.setDeliveredAt(LocalDateTime.now());
+                            order.setUpdatedAt(LocalDateTime.now());
+                            orderRepository.save(order);
+                            successCount++;
+                        } else {
+                            throw new RuntimeException("Order not in SHIPPED state");
+                        }
+                        break;
+                        
+                    case "cancel":
+                        if (!order.getStatus().equals("DELIVERED")) {
+                            order.setStatus("CANCELLED");
+                            order.setCancelledAt(LocalDateTime.now());
+                            order.setUpdatedAt(LocalDateTime.now());
+                            orderRepository.save(order);
+                            successCount++;
+                        } else {
+                            throw new RuntimeException("Cannot cancel delivered order");
+                        }
+                        break;
+                        
+                    default:
+                        throw new RuntimeException("Invalid action: " + action);
+                }
+            } catch (Exception e) {
+                errors.add("Order " + order.getId() + ": " + e.getMessage());
+                errorCount++;
+            }
+        }
+        
+        result.put("successCount", successCount);
+        result.put("errorCount", errorCount);
+        result.put("errors", errors);
+        
+        return result;
+    }
+}

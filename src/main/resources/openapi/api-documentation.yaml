@@ -1,0 +1,350 @@
+openapi: 3.0.3
+info:
+  title: ITech B2B Platform API Documentation
+  description: |
+    Complete API documentation for the ITech B2B Marketplace Platform.
+    This platform facilitates B2B trade by connecting buyers and sellers.
+
+    ## Key Features
+    - User Management (Buyers, Sellers, Admins)
+    - Product Management
+    - Order Processing
+    - RFQ System
+    - Vendor Verification
+    - Analytics and Reporting
+    - Chat and Support
+    - Payment Processing
+  version: 2.0.0
+  contact:
+    name: ITech Support
+    email: support@itech-platform.com
+    url: https://itech-platform.com/support
+  license:
+    name: Proprietary
+    url: https://itech-platform.com/license
+
+servers:
+  - url: https://api.itech-platform.com/v2
+    description: Production API Server
+  - url: https://staging-api.itech-platform.com/v2
+    description: Staging API Server
+  - url: http://localhost:8080/v2
+    description: Local Development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Authentication
+    description: Authentication and authorization endpoints
+  - name: Users
+    description: User management operations
+  - name: Products
+    description: Product management and catalog operations
+  - name: Orders
+    description: Order management and processing
+  - name: Vendors
+    description: Vendor management and verification
+  - name: RFQ
+    description: Request for Quotation system
+  - name: Analytics
+    description: Business analytics and reporting
+  - name: Payments
+    description: Payment processing and management
+  - name: Support
+    description: Customer support and chat system
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User Login
+      description: Authenticate user and receive access token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: SecurePassword123!
+              remember: true
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /products:
+    get:
+      tags:
+        - Products
+      summary: List Products
+      description: Get a list of products with optional filters
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by product category
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+          description: Minimum price filter
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+          description: Maximum price filter
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Page number for pagination
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Page size for pagination
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Products
+      summary: Create Product
+      description: Create a new product (Vendor only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /vendors/verify:
+    post:
+      tags:
+        - Vendors
+      summary: Submit Vendor Verification
+      description: Submit vendor verification documents
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VendorVerificationRequest'
+      responses:
+        '200':
+          description: Verification submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorVerification'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        remember:
+          type: boolean
+          default: false
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          format: int64
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, VENDOR, BUYER]
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, SUSPENDED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Product:
+      type: object
+      required:
+        - name
+        - price
+        - category
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          format: double
+        category:
+          type: string
+        subcategory:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+        specifications:
+          type: object
+          additionalProperties: true
+        stock:
+          type: integer
+          minimum: 0
+        vendor:
+          $ref: '#/components/schemas/VendorSummary'
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, SOLD_OUT]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    VendorVerificationRequest:
+      type: object
+      required:
+        - documentType
+        - file
+      properties:
+        documentType:
+          type: string
+          enum: [GST, PAN, BUSINESS_LICENSE, BANK_STATEMENT]
+        documentNumber:
+          type: string
+        expiryDate:
+          type: string
+          format: date
+        file:
+          type: string
+          format: binary
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      properties:
+        status:
+          type: integer
+          format: int32
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+        timestamp:
+          type: string
+          format: date-time

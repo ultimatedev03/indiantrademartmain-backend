@@ -1,0 +1,235 @@
+package com.itech.itech_backend.modules.workflow.service;
+
+import com.itech.itech_backend.modules.notification.service.NotificationService;
+import com.itech.itech_backend.modules.order.model.Order;
+import com.itech.itech_backend.modules.product.model.Product;
+import com.itech.itech_backend.modules.product.repository.ProductRepository;
+import com.itech.itech_backend.modules.vendor.model.Vendor;
+import com.itech.itech_backend.modules.vendor.repository.VendorRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AutomatedWorkflowService {
+
+    private final ProductRepository productRepository;
+    private final VendorRepository vendorRepository;
+    private final NotificationService notificationService;
+
+    /**
+     * Automated inventory management
+     */
+    @Scheduled(fixedRate = 3600000) // Every hour
+    @Transactional
+    public void manageInventory() {
+        log.info("Starting automated inventory management");
+        List<Product> products = productRepository.findAll();
+
+        for (Product product : products) {
+            try {
+                // Check low stock
+                if (product.getStockQuantity() <= product.getMinStockLevel()) {
+                    handleLowStock(product);
+                }
+
+                // Check overstock
+                if (product.getStockQuantity() >= product.getMaxStockLevel()) {
+                    handleOverstock(product);
+                }
+
+                // Update stock status
+                updateStockStatus(product);
+            } catch (Exception e) {
+                log.error("Error managing inventory for product {}: {}", 
+                    product.getId(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Automated vendor rating updates
+     */
+    @Scheduled(cron = "0 0 0 * * *") // Daily at midnight
+    @Transactional
+    public void updateVendorRatings() {
+        log.info("Starting automated vendor rating updates");
+        List<Vendor> vendors = vendorRepository.findAll();
+
+        for (Vendor vendor : vendors) {
+            try {
+                double rating = calculateVendorRating(vendor);
+                updateVendorRating(vendor, rating);
+            } catch (Exception e) {
+                log.error("Error updating rating for vendor {}: {}", 
+                    vendor.getId(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Order processing workflow
+     */
+    public void processOrder(Order order) {
+        try {
+            // Validate order
+            validateOrder(order);
+
+            // Process payment
+            processPayment(order);
+
+            // Update inventory
+            updateInventory(order);
+
+            // Send notifications
+            sendOrderNotifications(order);
+
+            // Schedule delivery
+            scheduleDelivery(order);
+
+        } catch (Exception e) {
+            log.error("Error processing order {}: {}", order.getId(), e.getMessage());
+            handleOrderError(order, e);
+        }
+    }
+
+    /**
+     * Automated marketing actions
+     */
+    @Scheduled(cron = "0 0 9 * * *") // Daily at 9 AM
+    public void executeMarketingActions() {
+        log.info("Starting automated marketing actions");
+        try {
+            // Identify inactive customers
+            notifyInactiveCustomers();
+
+            // Product recommendations
+            sendProductRecommendations();
+
+            // Price drop notifications
+            sendPriceDropNotifications();
+
+            // Promotional campaigns
+            executePromotionalCampaigns();
+        } catch (Exception e) {
+            log.error("Error executing marketing actions: {}", e.getMessage());
+        }
+    }
+
+    private void handleLowStock(Product product) {
+        // Notify vendor
+        notificationService.notifyVendor(
+            product.getVendor().getId(),
+            "Low Stock Alert",
+            "Product " + product.getName() + " is running low on stock."
+        );
+
+        // Generate reorder recommendation
+        Map<String, Object> reorderRecommendation = generateReorderRecommendation(product);
+        
+        // Auto-generate purchase order if configured
+        if (product.isAutoReorderEnabled()) {
+            generatePurchaseOrder(product, reorderRecommendation);
+        }
+    }
+
+    private void handleOverstock(Product product) {
+        // Notify vendor
+        notificationService.notifyVendor(
+            product.getVendor().getId(),
+            "Overstock Alert",
+            "Product " + product.getName() + " has excess inventory."
+        );
+
+        // Generate clearance recommendations
+        Map<String, Object> clearanceRecommendation = generateClearanceRecommendation(product);
+        
+        // Auto-adjust prices if configured
+        if (product.isAutoPriceAdjustmentEnabled()) {
+            adjustPriceForClearance(product, clearanceRecommendation);
+        }
+    }
+
+    private void updateStockStatus(Product product) {
+        product.setLastStockUpdate(LocalDateTime.now());
+        product.updateStockStatus();
+        productRepository.save(product);
+    }
+
+    private double calculateVendorRating(Vendor vendor) {
+        // Calculate based on multiple factors
+        return 0.0; // Implement rating calculation
+    }
+
+    private void updateVendorRating(Vendor vendor, double rating) {
+        vendor.setRating(rating);
+        vendor.setLastRatingUpdate(LocalDateTime.now());
+        vendorRepository.save(vendor);
+    }
+
+    private void validateOrder(Order order) {
+        // Implement order validation
+    }
+
+    private void processPayment(Order order) {
+        // Implement payment processing
+    }
+
+    private void updateInventory(Order order) {
+        // Implement inventory update
+    }
+
+    private void sendOrderNotifications(Order order) {
+        // Implement notification sending
+    }
+
+    private void scheduleDelivery(Order order) {
+        // Implement delivery scheduling
+    }
+
+    private void handleOrderError(Order order, Exception error) {
+        // Implement error handling
+    }
+
+    private void notifyInactiveCustomers() {
+        // Implement inactive customer notification
+    }
+
+    private void sendProductRecommendations() {
+        // Implement product recommendation
+    }
+
+    private void sendPriceDropNotifications() {
+        // Implement price drop notifications
+    }
+
+    private void executePromotionalCampaigns() {
+        // Implement promotional campaigns
+    }
+
+    private Map<String, Object> generateReorderRecommendation(Product product) {
+        // Generate reorder recommendations
+        return Map.of(); // Implement recommendation generation
+    }
+
+    private void generatePurchaseOrder(Product product, Map<String, Object> recommendation) {
+        // Generate purchase order
+    }
+
+    private Map<String, Object> generateClearanceRecommendation(Product product) {
+        // Generate clearance recommendations
+        return Map.of(); // Implement recommendation generation
+    }
+
+    private void adjustPriceForClearance(Product product, Map<String, Object> recommendation) {
+        // Adjust product price for clearance
+    }
+}

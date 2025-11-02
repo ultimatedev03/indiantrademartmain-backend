@@ -1,0 +1,213 @@
+package com.itech.itech_backend.modules.security.service;
+
+import com.itech.itech_backend.modules.security.model.Permission;
+import com.itech.itech_backend.modules.security.model.Role;
+import com.itech.itech_backend.modules.security.model.UserRole;
+import com.itech.itech_backend.modules.security.repository.PermissionRepository;
+import com.itech.itech_backend.modules.security.repository.RoleRepository;
+import com.itech.itech_backend.modules.security.repository.UserRoleRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class RbacService {
+
+    private final RoleRepository roleRepository;
+    private final PermissionRepository permissionRepository;
+    private final UserRoleRepository userRoleRepository;
+
+    @Transactional
+    public Role createRole(String name, String description, Set<String> permissions) {
+        // Validate permissions
+        Set<Permission> validPermissions = permissionRepository.findByNameIn(permissions);
+        if (validPermissions.size() != permissions.size()) {
+            throw new RuntimeException("Some permissions are invalid");
+        }
+
+        Role role = Role.builder()
+                .name(name)
+                .description(description)
+                .permissions(validPermissions)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return roleRepository.save(role);
+    }
+
+    @Transactional
+    public Permission createPermission(String name, String description, String resource) {
+        Permission permission = Permission.builder()
+                .name(name)
+                .description(description)
+                .resource(resource)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return permissionRepository.save(permission);
+    }
+
+    @Transactional
+    @CacheEvict(value = "userPermissions", key = "#userId")
+    public void assignRoleToUser(String userId, String roleName, LocalDateTime expiresAt) {
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
+
+        UserRole userRole = UserRole.builder()
+                .userId(userId)
+                .role(role)
+                .assignedAt(LocalDateTime.now())
+                .expiresAt(expiresAt)
+                .build();
+
+        userRoleRepository.save(userRole);
+    }
+
+    @Transactional
+    @CacheEvict(value = "userPermissions", key = "#userId")
+    public void revokeRoleFromUser(String userId, String roleName) {
+        userRoleRepository.deleteByUserIdAndRoleName(userId, roleName);
+    }
+
+    @Cacheable(value = "userPermissions", key = "#userId")
+    public Set<GrantedAuthority> getUserPermissions(String userId) {
+        // Get user's active roles
+        List<UserRole> userRoles = userRoleRepository.findActiveRolesByUserId(
+                userId, LocalDateTime.now());
+
+        // Collect all permissions from roles
+        return userRoles.stream()
+                .map(UserRole::getRole)
+                .flatMap(role -> role.getPermissions().stream())
+                .map(permission -> (GrantedAuthority) () -> permission.getName())
+                .collect(Collectors.toSet());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasPermission(String userId, String permission) {
+        Set<GrantedAuthority> permissions = getUserPermissions(userId);
+        return permissions.stream()
+                .anyMatch(auth -> auth.getAuthority().equals(permission));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasAnyPermission(String userId, Set<String> permissions) {
+        Set<GrantedAuthority> userPermissions = getUserPermissions(userId);
+        return userPermissions.stream()
+                .anyMatch(auth -> permissions.contains(auth.getAuthority()));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasAllPermissions(String userId, Set<String> permissions) {
+        Set<GrantedAuthority> userPermissions = getUserPermissions(userId);
+        return permissions.stream()
+                .allMatch(permission -> 
+                    userPermissions.stream()
+                        .anyMatch(auth -> auth.getAuthority().equals(permission)));
+    }
+
+    @Transactional
+    public Role updateRolePermissions(String roleName, Set<String> permissions) {
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
+
+        Set<Permission> validPermissions = permissionRepository.findByNameIn(permissions);
+        if (validPermissions.size() != permissions.size()) {
+            throw new RuntimeException("Some permissions are invalid");
+        }
+
+        role.setPermissions(validPermissions);
+        role.setUpdatedAt(LocalDateTime.now());
+
+        // Clear cache for all users with this role
+        List<String> affectedUsers = userRoleRepository.findByRoleName(roleName)
+                .stream()
+                .map(UserRole::getUserId)
+                .collect(Collectors.toList());
+
+        roleRepository.save(role);
+
+        // Clear cache for affected users
+        clearUserPermissionsCache(affectedUsers);
+
+        return role;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Role> getUserRoles(String userId) {
+        return userRoleRepository.findActiveRolesByUserId(userId, LocalDateTime.now())
+                .stream()
+                .map(UserRole::getRole)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getRoleHierarchy(String roleName) {
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
+
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put("name", role.getName());
+        hierarchy.put("description", role.getDescription());
+
+        // Group permissions by resource
+        Map<String, List<Permission>> permissionsByResource = role.getPermissions()
+                .stream()
+                .collect(Collectors.groupingBy(Permission::getResource));
+
+        hierarchy.put("permissions", permissionsByResource);
+
+        return hierarchy;
+    }
+
+    @Transactional
+    public void createDefaultRoles() {
+        // Create basic permissions
+        Set<Permission> adminPermissions = new HashSet<>();
+        adminPermissions.add(createPermission("ADMIN_ALL", "Full administrative access", "*"));
+        
+        Set<Permission> vendorPermissions = new HashSet<>();
+        vendorPermissions.add(createPermission("VENDOR_MANAGE_PRODUCTS", "Manage products", "products"));
+        vendorPermissions.add(createPermission("VENDOR_MANAGE_ORDERS", "Manage orders", "orders"));
+        vendorPermissions.add(createPermission("VENDOR_VIEW_ANALYTICS", "View analytics", "analytics"));
+        
+        Set<Permission> userPermissions = new HashSet<>();
+        userPermissions.add(createPermission("USER_VIEW_PRODUCTS", "View products", "products"));
+        userPermissions.add(createPermission("USER_PLACE_ORDERS", "Place orders", "orders"));
+        userPermissions.add(createPermission("USER_MANAGE_PROFILE", "Manage profile", "profile"));
+
+        // Create roles
+        createRole("ADMIN", "System Administrator", 
+                adminPermissions.stream().map(Permission::getName).collect(Collectors.toSet()));
+        
+        createRole("VENDOR", "Vendor/Seller", 
+                vendorPermissions.stream().map(Permission::getName).collect(Collectors.toSet()));
+        
+        createRole("USER", "Regular User", 
+                userPermissions.stream().map(Permission::getName).collect(Collectors.toSet()));
+    }
+
+    @CacheEvict(value = "userPermissions", allEntries = true)
+    public void clearAllPermissionsCache() {
+        log.info("Cleared all permissions cache");
+    }
+
+    @CacheEvict(value = "userPermissions", key = "#userId")
+    public void clearUserPermissionsCache(String userId) {
+        log.info("Cleared permissions cache for user: {}", userId);
+    }
+
+    private void clearUserPermissionsCache(List<String> userIds) {
+        userIds.forEach(this::clearUserPermissionsCache);
+    }
+}

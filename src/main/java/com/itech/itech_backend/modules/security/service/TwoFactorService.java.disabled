@@ -1,0 +1,173 @@
+package com.itech.itech_backend.modules.security.service;
+
+import com.itech.itech_backend.modules.security.model.TwoFactorAuth;
+import com.itech.itech_backend.modules.security.repository.TwoFactorAuthRepository;
+import dev.samstevens.totp.code.*;
+import dev.samstevens.totp.exceptions.QrGenerationException;
+import dev.samstevens.totp.qr.QrData;
+import dev.samstevens.totp.qr.QrGenerator;
+import dev.samstevens.totp.qr.ZxingPngQrGenerator;
+import dev.samstevens.totp.secret.DefaultSecretGenerator;
+import dev.samstevens.totp.secret.SecretGenerator;
+import dev.samstevens.totp.time.SystemTimeProvider;
+import dev.samstevens.totp.time.TimeProvider;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.Base64;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class TwoFactorService {
+
+    private final TwoFactorAuthRepository twoFactorAuthRepository;
+    private final SecretGenerator secretGenerator = new DefaultSecretGenerator();
+    private final TimeProvider timeProvider = new SystemTimeProvider();
+    private final CodeGenerator codeGenerator = new DefaultCodeGenerator();
+    private final CodeVerifier codeVerifier = new DefaultCodeVerifier(codeGenerator, timeProvider);
+
+    @Transactional
+    public TwoFactorAuth enableTwoFactor(String userId, String email) {
+        // Generate secret key
+        String secretKey = secretGenerator.generate();
+
+        // Create QR code data
+        QrData qrData = new QrData.Builder()
+                .label(email)
+                .secret(secretKey)
+                .issuer("ITech B2B")
+                .algorithm(HashingAlgorithm.SHA1)
+                .digits(6)
+                .period(30)
+                .build();
+
+        // Generate QR code
+        QrGenerator qrGenerator = new ZxingPngQrGenerator();
+        byte[] qrCodeImage;
+        try {
+            qrCodeImage = qrGenerator.generate(qrData);
+        } catch (QrGenerationException e) {
+            throw new RuntimeException("Failed to generate QR code", e);
+        }
+
+        // Convert QR code to base64
+        String qrCodeBase64 = Base64.getEncoder().encodeToString(qrCodeImage);
+
+        // Save 2FA data
+        TwoFactorAuth twoFactorAuth = TwoFactorAuth.builder()
+                .userId(userId)
+                .secretKey(secretKey)
+                .qrCode(qrCodeBase64)
+                .enabled(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return twoFactorAuthRepository.save(twoFactorAuth);
+    }
+
+    @Transactional
+    public boolean verifyAndEnable2FA(String userId, String code) {
+        TwoFactorAuth twoFactorAuth = twoFactorAuthRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("2FA not set up for user"));
+
+        if (verifyCode(twoFactorAuth.getSecretKey(), code)) {
+            twoFactorAuth.setEnabled(true);
+            twoFactorAuth.setVerifiedAt(LocalDateTime.now());
+            twoFactorAuthRepository.save(twoFactorAuth);
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean verify2FACode(String userId, String code) {
+        TwoFactorAuth twoFactorAuth = twoFactorAuthRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("2FA not set up for user"));
+
+        if (!twoFactorAuth.isEnabled()) {
+            throw new RuntimeException("2FA is not enabled for user");
+        }
+
+        return verifyCode(twoFactorAuth.getSecretKey(), code);
+    }
+
+    @Transactional
+    public void disable2FA(String userId, String code) {
+        TwoFactorAuth twoFactorAuth = twoFactorAuthRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("2FA not set up for user"));
+
+        if (!twoFactorAuth.isEnabled()) {
+            throw new RuntimeException("2FA is not enabled for user");
+        }
+
+        if (!verifyCode(twoFactorAuth.getSecretKey(), code)) {
+            throw new RuntimeException("Invalid 2FA code");
+        }
+
+        twoFactorAuthRepository.delete(twoFactorAuth);
+    }
+
+    private boolean verifyCode(String secretKey, String code) {
+        return codeVerifier.isValidCode(secretKey, code);
+    }
+
+    public boolean isEnabled(String userId) {
+        return twoFactorAuthRepository.findByUserId(userId)
+                .map(TwoFactorAuth::isEnabled)
+                .orElse(false);
+    }
+
+    @Transactional
+    public void generateBackupCodes(String userId) {
+        TwoFactorAuth twoFactorAuth = twoFactorAuthRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("2FA not set up for user"));
+
+        if (!twoFactorAuth.isEnabled()) {
+            throw new RuntimeException("2FA is not enabled for user");
+        }
+
+        // Generate 10 backup codes
+        String[] backupCodes = new String[10];
+        for (int i = 0; i < 10; i++) {
+            backupCodes[i] = generateBackupCode();
+        }
+
+        twoFactorAuth.setBackupCodes(String.join(",", backupCodes));
+        twoFactorAuthRepository.save(twoFactorAuth);
+    }
+
+    private String generateBackupCode() {
+        // Generate a 10-character backup code
+        byte[] bytes = new byte[5];
+        new java.security.SecureRandom().nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+                .substring(0, 10)
+                .toUpperCase();
+    }
+
+    public boolean verifyBackupCode(String userId, String backupCode) {
+        TwoFactorAuth twoFactorAuth = twoFactorAuthRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("2FA not set up for user"));
+
+        if (!twoFactorAuth.isEnabled()) {
+            throw new RuntimeException("2FA is not enabled for user");
+        }
+
+        String[] backupCodes = twoFactorAuth.getBackupCodes().split(",");
+        for (int i = 0; i < backupCodes.length; i++) {
+            if (backupCodes[i].equals(backupCode)) {
+                // Remove used backup code
+                backupCodes[i] = "";
+                twoFactorAuth.setBackupCodes(String.join(",", backupCodes));
+                twoFactorAuthRepository.save(twoFactorAuth);
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
