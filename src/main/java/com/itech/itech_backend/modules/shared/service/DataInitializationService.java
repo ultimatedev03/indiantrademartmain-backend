@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "app.init.sample-data", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class DataInitializationService implements CommandLineRunner {

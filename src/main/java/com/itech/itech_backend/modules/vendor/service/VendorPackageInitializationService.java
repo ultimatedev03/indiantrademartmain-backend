@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "app.init.vendor-packages", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class VendorPackageInitializationService implements CommandLineRunner {
