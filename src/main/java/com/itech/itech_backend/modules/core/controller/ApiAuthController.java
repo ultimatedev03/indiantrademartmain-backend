@@ -1,8 +1,12 @@
 package com.itech.itech_backend.modules.core.controller;
 
+import com.itech.itech_backend.modules.shared.dto.JwtResponse;
 import com.itech.itech_backend.modules.shared.dto.RegisterRequestDto;
+import com.itech.itech_backend.modules.shared.dto.VerifyOtpRequestDto;
 import com.itech.itech_backend.modules.core.service.UnifiedAuthService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -71,6 +75,30 @@ public class ApiAuthController {
             }
             // Re-throw other exceptions
             throw e;
+        }
+    }
+    
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestBody VerifyOtpRequestDto dto) {
+        System.out.println("🔍 API OTP Verification Request Received");
+        System.out.println("📱 Contact: " + dto.getEmailOrPhone());
+        System.out.println("🔢 OTP: " + dto.getOtp());
+        
+        try {
+            JwtResponse response = unifiedAuthService.verifyOtpAndGenerateToken(dto);
+            
+            if (response == null) {
+                System.out.println("❌ API OTP Verification Failed");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid or Expired OTP!");
+            }
+            
+            System.out.println("✅ API OTP Verification Successful");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.out.println("❌ API OTP Verification Error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Verification failed: " + e.getMessage());
         }
     }
 }
