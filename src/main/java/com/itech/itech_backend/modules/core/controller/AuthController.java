@@ -482,5 +482,21 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
     }
+    
+    // Logout
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout() {
+        System.out.println("🚪 Logout Request");
+        try {
+            // For now, just return success since JWT is stateless
+            // In the future, you can add token blacklisting here
+            System.out.println("✅ Logout successful");
+            return ResponseEntity.ok("Logged out successfully");
+        } catch (Exception e) {
+            System.out.println("❌ Logout error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Logout failed: " + e.getMessage());
+        }
+    }
 }
 
