@@ -10,7 +10,7 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 import java.util.Properties;
 
 @Configuration
-@Profile("production")
+@Profile({"production", "render"})
 public class ProductionMailConfig {
 
     @Value("${spring.mail.host:smtp.gmail.com}")
