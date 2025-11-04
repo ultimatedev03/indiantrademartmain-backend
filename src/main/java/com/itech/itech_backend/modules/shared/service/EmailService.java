@@ -17,7 +17,7 @@ public class EmailService {
     @Autowired(required = false)
     private JavaMailSender mailSender;
     
-    @Value("${spring.mail.username:noreply@indiantradeMart.com}")
+    @Value("${spring.mail.from:${spring.mail.username:noreply@indiantradeMart.com}}")
     private String fromEmail;
     
     @Value("${email.simulation.enabled:true}")
